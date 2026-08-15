@@ -10,22 +10,27 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
+use Spatie\QueryBuilder\AllowedFilter;
+use Spatie\QueryBuilder\QueryBuilder;
 
 class BrandController extends Controller
 {
     public function index(Request $request): Response
     {
-        $brands = Brand::query()
+        $brands = QueryBuilder::for(Brand::class)
             ->withCount('products')
-            ->when($request->string('search')->toString(), function ($query, $search) {
-                $query->where('name', 'like', "%{$search}%")
-                    ->orWhere('slug', 'like', "%{$search}%");
-            })
-            ->when($request->filled('status'), fn ($q) => $q->where(
-                'is_active',
-                $request->string('status')->toString() === 'active'
-            ))
-            ->orderBy('sort_order')
+            ->allowedFilters([
+                AllowedFilter::callback('search', fn ($query, $value) => $query->where(
+                    fn ($q) => $q->where('name', 'like', "%{$value}%")
+                        ->orWhere('slug', 'like', "%{$value}%")
+                )),
+                AllowedFilter::callback('status', fn ($query, $value) => $query->where(
+                    'is_active',
+                    $value === 'active'
+                )),
+            ])
+            ->allowedSorts(['sort_order', 'slug', 'created_at', 'products_count'])
+            ->defaultSort('sort_order')
             ->paginate(15)
             ->withQueryString()
             ->through(fn (Brand $brand) => [

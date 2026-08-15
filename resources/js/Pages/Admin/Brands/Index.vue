@@ -14,10 +14,16 @@ const props = defineProps({
 const search = ref(props.filters.search ?? '')
 const status = ref(props.filters.status ?? '')
 
+// spatie/laravel-query-builder reads filters from filter[...]
 const refresh = debounce(() => {
     router.get(
         route('admin.brands.index'),
-        { search: search.value || undefined, status: status.value || undefined },
+        {
+            filter: {
+                search: search.value || undefined,
+                status: status.value || undefined,
+            },
+        },
         { preserveState: true, replace: true },
     )
 }, 300)
