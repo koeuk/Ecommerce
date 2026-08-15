@@ -49,8 +49,9 @@ Route::post('admin/logout', [AdminAuthController::class, 'logout'])
     ->middleware('auth')
     ->name('admin.logout');
 
-Route::middleware(['auth', 'admin'])->prefix('admin')->group(function() {
-    Route::get('/dashboard', [AdminController::class, 'index'])->name('admin.dashboard');
-});
+Route::middleware(['auth', 'admin'])
+    ->prefix('admin')
+    ->name('admin.')
+    ->group(base_path('routes/admin.php'));
 
 require __DIR__.'/auth.php';
