@@ -9,14 +9,15 @@
 ## Table of contents
 
 1. [Blockers to fix first](#0-blockers-to-fix-before-anything-new)
-2. [Database changes](#1-database--tables-to-add-or-change)
-3. [Backend application layer](#2-backend--application-layer)
-4. [Admin dashboard pages](#3-admin-dashboard--pages-to-build)
-5. [Storefront pages](#4-storefront--pages-to-build)
-6. [Cross-cutting concerns](#5-cross-cutting-concerns)
-7. [Packages](#6-packages-worth-adding)
-8. [Build order](#7-suggested-build-order)
-9. [Open decisions](#8-open-decisions)
+2. [Cleanup — delete, rewrite, keep](#01-cleanup--delete-rewrite-keep)
+3. [Database changes](#1-database--tables-to-add-or-change)
+4. [Backend application layer](#2-backend--application-layer)
+5. [Admin dashboard pages](#3-admin-dashboard--pages-to-build)
+6. [Storefront pages](#4-storefront--pages-to-build)
+7. [Cross-cutting concerns](#5-cross-cutting-concerns)
+8. [Packages](#6-packages-worth-adding)
+9. [Build order](#7-suggested-build-order)
+10. [Open decisions](#8-open-decisions)
 
 ---
 
@@ -47,6 +48,57 @@ Everything below assumes variants and specs get modelled properly first.
 
 > **Recommendation:** since the project is pre-launch, **rewrite the 2024 migrations in place**
 > rather than stacking `ALTER` migrations. Cleaner than carrying the mistakes forward.
+
+---
+
+## 0.1 Cleanup — delete, rewrite, keep
+
+**Verdict: clean now.** There are **8 stub controllers × 7 empty methods = 56 methods with zero
+logic**. You would be deleting empty shells, not working code. This gets expensive later; right
+now it costs nothing.
+
+Clean *selectively* — the Breeze auth scaffold and the 824 lines of Flowbite admin chrome are
+genuinely worth keeping.
+
+> **Commit first**, so everything is recoverable:
+> ```bash
+> git add -A && git commit -m "checkpoint before cleanup"
+> ```
+
+### 🗑️ Delete
+
+| What | Why |
+|---|---|
+| 8 stub controllers — `Brand`, `CartItem`, `Category`, `Order`, `OrderItem`, `Payment`, `Product`, `ProductImage`, `UserAddress` | All empty, and all in the **flat namespace**. The roadmap needs `Admin\*` and `Shop\*` — keeping these leaves wrong-namespace duplicates to work around. Regenerate later with `php artisan make:controller Admin/ProductController --resource --model=Product` |
+| `resources/views/welcome.blade.php` | Dead. Inertia serves `app.blade.php`, and `/` renders the Inertia `Welcome` page |
+| `.erd.json` | Empty ERD — `tableIds: []`, zero tables. Serves nothing |
+| `resources/js/Pages/Admin/Components/Footer.vue` | 0 bytes |
+
+### ♻️ Rewrite
+
+| What | Change |
+|---|---|
+| The 9 domain migrations | Rewrite in place with the full schema in §1 — pre-launch, no data to preserve |
+| `Admin/AdminAuthController` + `Admin/AdminController` | Merge into one; fix the route → method mismatch |
+| `app/Http/Middleware/redirectAdmin.php` | Rename to `RedirectIfAdmin`. It *works* (Kernel imports it correctly), but a lowercase class name breaks PSR-1 and trips static analysis |
+| `app/Models/Product.php`, `app/Models/CartItem.php` | Fix the broken relations; add `$fillable` / `$casts` |
+| `app/Models/User.php` | `isAdmin` disappears entirely once you move to `spatie/laravel-permission` |
+
+### ✅ Keep as-is
+
+- **All Breeze auth** — controllers, form requests, `Pages/Auth/*.vue`, `Layouts/`, `Components/`.
+  Solid, and reused for customer accounts
+- **`Sidebar.vue` + `Navbar.vue`** — 824 lines of working Flowbite markup. Keep it; just swap
+  `href="#"` for Ziggy `route()` calls
+- **`HandleInertiaRequests`** — extend it to share cart count, auth user, and store settings
+- Vite / Tailwind / PostCSS config
+- `Welcome.vue` and `Dashboard.vue` — they become the storefront home and the customer account
+  dashboard
+
+### Already fine — no action needed
+
+- `.env` is correctly gitignored and untracked ✓
+- `Kernel.php:5` properly imports the `redirectAdmin` middleware ✓
 
 ---
 
