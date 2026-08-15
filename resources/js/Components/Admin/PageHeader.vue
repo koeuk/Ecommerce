@@ -19,7 +19,7 @@ defineProps({
         <Link
             v-if="actionLabel && actionHref"
             :href="actionHref"
-            class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 focus:ring-4 focus:ring-blue-300"
+            class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-brand-700 rounded-lg hover:bg-brand-800 focus:ring-4 focus:ring-brand-200"
         >
             {{ actionLabel }}
         </Link>

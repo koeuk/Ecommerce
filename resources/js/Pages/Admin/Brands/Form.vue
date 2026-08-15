@@ -112,7 +112,7 @@ const submit = () => {
                                 <input
                                     v-model="form.is_active"
                                     type="checkbox"
-                                    class="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                    class="w-4 h-4 rounded border-gray-300 text-brand-700 focus:ring-brand-600"
                                 />
                                 <span class="text-sm text-gray-700 dark:text-gray-300">Active</span>
                             </label>
@@ -124,7 +124,7 @@ const submit = () => {
                     <button
                         type="submit"
                         :disabled="form.processing"
-                        class="px-5 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                        class="px-5 py-2.5 text-sm font-medium text-white bg-brand-700 rounded-lg hover:bg-brand-800 disabled:opacity-50"
                     >
                         {{ form.processing ? 'Saving…' : (isEdit ? 'Update brand' : 'Create brand') }}
                     </button>

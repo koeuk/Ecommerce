@@ -119,7 +119,7 @@ const destroy = (brand) => {
                             <td class="px-6 py-4 text-right whitespace-nowrap">
                                 <Link
                                     :href="route('admin.brands.edit', brand.id)"
-                                    class="font-medium text-blue-600 hover:underline dark:text-blue-500"
+                                    class="font-medium text-brand-700 hover:underline dark:text-brand-600"
                                 >
                                     Edit
                                 </Link>
@@ -150,7 +150,7 @@ const destroy = (brand) => {
                     :href="link.url"
                     class="px-3 py-1.5 text-sm rounded border"
                     :class="link.active
-                        ? 'bg-blue-600 text-white border-blue-600'
+                        ? 'bg-brand-700 text-white border-brand-700'
                         : 'bg-white text-gray-600 border-gray-300 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600'"
                     v-html="link.label"
                 />

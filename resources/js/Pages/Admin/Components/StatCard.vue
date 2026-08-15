@@ -12,7 +12,7 @@ defineProps({
 const tones = {
     neutral: 'text-gray-900 dark:text-white',
     positive: 'text-green-600 dark:text-green-400',
-    warning: 'text-amber-600 dark:text-amber-400',
+    warning: 'text-amber-600 dark:text-brand-400',
 }
 </script>
 
@@ -21,7 +21,7 @@ const tones = {
         :is="href ? Link : 'div'"
         :href="href"
         class="block rounded-xl bg-white p-5 shadow-sm ring-1 ring-gray-200 transition dark:bg-gray-800 dark:ring-gray-700"
-        :class="href ? 'hover:ring-blue-400' : ''"
+        :class="href ? 'hover:ring-brand-500' : ''"
     >
         <p class="text-sm font-medium text-gray-500 dark:text-gray-400">{{ label }}</p>
         <p class="mt-2 text-2xl font-semibold tabular-nums" :class="tones[tone]">{{ value }}</p>

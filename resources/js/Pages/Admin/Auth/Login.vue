@@ -46,10 +46,10 @@ const submit = () => {
         >
             <!-- Left: brand panel -->
             <div
-                class="relative hidden flex-col justify-end bg-gradient-to-br from-gray-900 via-gray-900 to-amber-950 p-10 lg:flex"
+                class="relative hidden flex-col justify-end bg-gradient-to-br from-gray-900 via-gray-900 to-brand-950 p-10 lg:flex"
             >
                 <div
-                    class="absolute left-10 top-10 flex h-11 w-11 items-center justify-center rounded-xl bg-amber-500 text-lg font-bold text-gray-900"
+                    class="absolute left-10 top-10 flex h-11 w-11 items-center justify-center rounded-xl bg-brand-700 text-lg font-bold text-gray-900"
                 >
                     V
                 </div>
@@ -57,7 +57,7 @@ const submit = () => {
                 <div class="mb-10">
                     <h2 class="text-3xl font-semibold leading-tight text-white">
                         {{ slides[slide].title }}<br />
-                        <span class="text-amber-400">{{ slides[slide].accent }}</span>
+                        <span class="text-brand-400">{{ slides[slide].accent }}</span>
                     </h2>
                     <p class="mt-4 max-w-sm text-sm leading-relaxed text-gray-400">
                         {{ slides[slide].body }}
@@ -70,7 +70,7 @@ const submit = () => {
                         :key="i"
                         type="button"
                         class="h-1.5 rounded-full transition-all"
-                        :class="i === slide ? 'w-6 bg-amber-400' : 'w-1.5 bg-gray-600 hover:bg-gray-500'"
+                        :class="i === slide ? 'w-6 bg-brand-500' : 'w-1.5 bg-gray-600 hover:bg-gray-500'"
                         :aria-label="`Slide ${i + 1}`"
                         @click="slide = i"
                     />
@@ -81,7 +81,7 @@ const submit = () => {
             <div class="flex flex-col p-8 sm:p-12">
                 <div class="mb-10 flex items-center justify-between">
                     <div
-                        class="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-500 text-sm font-bold text-gray-900 lg:hidden"
+                        class="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-700 text-sm font-bold text-gray-900 lg:hidden"
                     >
                         V
                     </div>
@@ -112,7 +112,7 @@ const submit = () => {
                                 autofocus
                                 autocomplete="username"
                                 placeholder="you@example.com"
-                                class="block w-full rounded-lg border-gray-300 text-sm shadow-sm transition focus:border-amber-500 focus:ring-amber-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:placeholder-gray-500"
+                                class="block w-full rounded-lg border-gray-300 text-sm shadow-sm transition focus:border-brand-600 focus:ring-brand-600 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:placeholder-gray-500"
                                 :class="form.errors.email ? 'border-red-400 focus:border-red-500 focus:ring-red-500' : ''"
                             />
                             <InputError class="mt-1.5" :message="form.errors.email" />
@@ -133,7 +133,7 @@ const submit = () => {
                                     required
                                     autocomplete="current-password"
                                     placeholder="minimum 8 characters"
-                                    class="block w-full rounded-lg border-gray-300 pr-11 text-sm shadow-sm transition focus:border-amber-500 focus:ring-amber-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:placeholder-gray-500"
+                                    class="block w-full rounded-lg border-gray-300 pr-11 text-sm shadow-sm transition focus:border-brand-600 focus:ring-brand-600 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:placeholder-gray-500"
                                     :class="form.errors.password ? 'border-red-400 focus:border-red-500 focus:ring-red-500' : ''"
                                 />
                                 <button
@@ -181,7 +181,7 @@ const submit = () => {
                                 <input
                                     v-model="form.remember"
                                     type="checkbox"
-                                    class="h-4 w-4 rounded border-gray-300 text-amber-500 focus:ring-amber-500"
+                                    class="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-600"
                                 />
                                 <span class="text-sm text-gray-600 dark:text-gray-400">Remember me</span>
                             </label>
@@ -190,7 +190,7 @@ const submit = () => {
                         <button
                             type="submit"
                             :disabled="form.processing"
-                            class="flex w-full items-center justify-center gap-2 rounded-lg bg-amber-500 px-5 py-2.5 text-sm font-semibold text-gray-900 transition hover:bg-amber-400 focus:ring-4 focus:ring-amber-200 disabled:cursor-not-allowed disabled:opacity-60"
+                            class="flex w-full items-center justify-center gap-2 rounded-lg bg-brand-700 px-5 py-2.5 text-sm font-semibold text-gray-900 transition hover:bg-brand-600 focus:ring-4 focus:ring-brand-200 disabled:cursor-not-allowed disabled:opacity-60"
                         >
                             <svg v-if="form.processing" class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
                                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />

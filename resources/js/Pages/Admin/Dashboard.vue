@@ -22,7 +22,7 @@ const money = (n) => '$' + Number(n).toLocaleString(undefined, { minimumFraction
 
 const statusTone = {
     pending: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300',
-    confirmed: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
+    confirmed: 'bg-brand-100 text-brand-800 dark:bg-brand-900 dark:text-brand-300',
     processing: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-300',
     shipped: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300',
     delivered: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',

@@ -25,7 +25,7 @@ const money = (n) => '$' + Number(n).toLocaleString(undefined, { maximumFraction
                 class="group relative flex flex-1 flex-col items-center justify-end"
             >
                 <div
-                    class="w-full rounded-t bg-blue-500 transition-all hover:bg-blue-600"
+                    class="w-full rounded-t bg-brand-600 transition-all hover:bg-brand-700"
                     :style="{ height: `${Math.max((point.total / max) * 100, point.total > 0 ? 2 : 0)}%` }"
                 />
                 <span

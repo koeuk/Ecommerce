@@ -45,7 +45,7 @@ const hasError = (locale) => Boolean(errorFor(locale))
                     class="px-2 py-0.5 text-xs rounded border transition"
                     :class="[
                         active === locale
-                            ? 'bg-blue-600 text-white border-blue-600'
+                            ? 'bg-brand-700 text-white border-brand-700'
                             : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600',
                         hasError(locale) ? 'ring-1 ring-red-500' : '',
                     ]"
@@ -63,7 +63,7 @@ const hasError = (locale) => Boolean(errorFor(locale))
                 v-show="active === locale"
                 :value="modelValue?.[locale] ?? ''"
                 rows="5"
-                class="block w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                class="block w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-600 focus:ring-brand-600 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                 @input="update(locale, $event.target.value)"
             />
             <input
@@ -71,7 +71,7 @@ const hasError = (locale) => Boolean(errorFor(locale))
                 v-show="active === locale"
                 :value="modelValue?.[locale] ?? ''"
                 type="text"
-                class="block w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                class="block w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-600 focus:ring-brand-600 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                 @input="update(locale, $event.target.value)"
             />
         </template>

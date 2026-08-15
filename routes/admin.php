@@ -30,11 +30,11 @@ Route::middleware('can:create brand')->group(function () {
 });
 
 Route::middleware('can:update brand')->group(function () {
-    Route::get('brands/{brand}/edit', [BrandController::class, 'edit'])->name('brands.edit');
-    Route::put('brands/{brand}', [BrandController::class, 'update'])->name('brands.update');
+    Route::get('brands/{brand:id}/edit', [BrandController::class, 'edit'])->name('brands.edit');
+    Route::put('brands/{brand:id}', [BrandController::class, 'update'])->name('brands.update');
 });
 
-Route::delete('brands/{brand}', [BrandController::class, 'destroy'])
+Route::delete('brands/{brand:id}', [BrandController::class, 'destroy'])
     ->middleware('can:delete brand')
     ->name('brands.destroy');
 
@@ -49,11 +49,11 @@ Route::middleware('can:create category')->group(function () {
 });
 
 Route::middleware('can:update category')->group(function () {
-    Route::get('categories/{category}/edit', [CategoryController::class, 'edit'])->name('categories.edit');
-    Route::put('categories/{category}', [CategoryController::class, 'update'])->name('categories.update');
+    Route::get('categories/{category:id}/edit', [CategoryController::class, 'edit'])->name('categories.edit');
+    Route::put('categories/{category:id}', [CategoryController::class, 'update'])->name('categories.update');
 });
 
-Route::delete('categories/{category}', [CategoryController::class, 'destroy'])
+Route::delete('categories/{category:id}', [CategoryController::class, 'destroy'])
     ->middleware('can:delete category')
     ->name('categories.destroy');
 
@@ -65,19 +65,19 @@ Route::middleware('can:view product')->group(function () {
 Route::middleware('can:create product')->group(function () {
     Route::get('products/create', [ProductController::class, 'create'])->name('products.create');
     Route::post('products', [ProductController::class, 'store'])->name('products.store');
-    Route::post('products/{product}/duplicate', [ProductController::class, 'duplicate'])->name('products.duplicate');
+    Route::post('products/{product:id}/duplicate', [ProductController::class, 'duplicate'])->name('products.duplicate');
 });
 
 Route::middleware('can:update product')->group(function () {
-    Route::get('products/{product}/edit', [ProductController::class, 'edit'])->name('products.edit');
-    Route::put('products/{product}', [ProductController::class, 'update'])->name('products.update');
+    Route::get('products/{product:id}/edit', [ProductController::class, 'edit'])->name('products.edit');
+    Route::put('products/{product:id}', [ProductController::class, 'update'])->name('products.update');
 
     // Image sub-resources
-    Route::delete('products/{product}/images/{image}', [ProductController::class, 'deleteImage'])->name('products.images.destroy');
-    Route::put('products/{product}/images/reorder', [ProductController::class, 'reorderImages'])->name('products.images.reorder');
-    Route::put('products/{product}/images/{image}/primary', [ProductController::class, 'setPrimaryImage'])->name('products.images.primary');
+    Route::delete('products/{product:id}/images/{image}', [ProductController::class, 'deleteImage'])->name('products.images.destroy');
+    Route::put('products/{product:id}/images/reorder', [ProductController::class, 'reorderImages'])->name('products.images.reorder');
+    Route::put('products/{product:id}/images/{image}/primary', [ProductController::class, 'setPrimaryImage'])->name('products.images.primary');
 });
 
-Route::delete('products/{product}', [ProductController::class, 'destroy'])
+Route::delete('products/{product:id}', [ProductController::class, 'destroy'])
     ->middleware('can:delete product')
     ->name('products.destroy');

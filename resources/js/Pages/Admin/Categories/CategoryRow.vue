@@ -38,7 +38,7 @@ defineEmits(['delete'])
         <td class="px-6 py-3 text-right whitespace-nowrap">
             <Link
                 :href="route('admin.categories.edit', node.id)"
-                class="font-medium text-blue-600 hover:underline dark:text-blue-500"
+                class="font-medium text-brand-700 hover:underline dark:text-brand-600"
             >
                 Edit
             </Link>
