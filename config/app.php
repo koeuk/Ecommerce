@@ -86,6 +86,23 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Supported Locales
+    |--------------------------------------------------------------------------
+    |
+    | Locales offered for translatable model columns. Admin forms render one
+    | input tab per locale; "en" is required, the rest are optional.
+    |
+    */
+
+    'supported_locales' => ['en', 'km'],
+
+    'locale_names' => [
+        'en' => 'English',
+        'km' => 'ខ្មែរ',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Fallback Locale
     |--------------------------------------------------------------------------
     |
