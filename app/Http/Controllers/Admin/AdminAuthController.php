@@ -3,31 +3,44 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
+use Inertia\Response;
 
 class AdminAuthController extends Controller
 {
-    public function showLoginForm() 
+    public function showLoginForm(): Response
     {
         return Inertia::render('Admin/Auth/Login');
     }
 
-    public function login (Request $request) {
-        // add your login logic here
-        // Check if the user is an admin redirect accordingly
-        if (Auth::attempt(['email' => $request->email, 'password' => $request->password, 'isAdmin' => true])) {
-            return redirect()->route('admin.dashboard'); // redirect to the admin dashboard
+    public function login(Request $request): RedirectResponse
+    {
+        $credentials = $request->validate([
+            'email' => ['required', 'string', 'email'],
+            'password' => ['required', 'string'],
+        ]);
+
+        if (! Auth::attempt([...$credentials, 'isAdmin' => 1], $request->boolean('remember'))) {
+            throw ValidationException::withMessages([
+                'email' => __('auth.failed'),
+            ]);
         }
-        return redirect()->route('admin.login')->with('error', 'Invalid username or password');
+
+        $request->session()->regenerate();
+
+        return redirect()->intended(route('admin.dashboard'));
     }
 
-    public function logout(Request $request) {
-        
+    public function logout(Request $request): RedirectResponse
+    {
         Auth::guard('web')->logout();
 
         $request->session()->invalidate();
+        $request->session()->regenerateToken();
 
         return redirect()->route('admin.login');
     }

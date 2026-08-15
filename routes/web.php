@@ -25,7 +25,7 @@ Route::get('/', function () {
         'laravelVersion' => Application::VERSION,
         'phpVersion' => PHP_VERSION,
     ]);
-});
+})->name('home');
 
 Route::get('/dashboard', function () {
     return Inertia::render('Dashboard');
@@ -37,14 +37,15 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
-// end 
-
 // admin routes
-Route::group(['prefix' => 'admin', 'middleware' => 'redirectAdmin'], function() {
+Route::prefix('admin')->middleware('redirectAdmin')->group(function () {
     Route::get('login', [AdminAuthController::class, 'showLoginForm'])->name('admin.login');
-    Route::post('login', [AdminController::class, 'login'])->name('admin.login.post');
-    Route::post('logout', [AdminController::class, 'logout'])->name('admin.logout');
+    Route::post('login', [AdminAuthController::class, 'login'])->name('admin.login.post');
 });
+
+Route::post('admin/logout', [AdminAuthController::class, 'logout'])
+    ->middleware('auth')
+    ->name('admin.logout');
 
 Route::middleware(['auth', 'admin'])->prefix('admin')->group(function() {
     Route::get('/dashboard', [AdminController::class, 'index'])->name('admin.dashboard');
