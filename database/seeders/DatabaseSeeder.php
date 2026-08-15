@@ -12,8 +12,16 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             RoleSeeder::class,
+            ReferenceDataSeeder::class,
+            CatalogStructureSeeder::class,
+            ProductSeeder::class,
         ]);
 
+        $this->accounts();
+    }
+
+    private function accounts(): void
+    {
         User::factory()
             ->create([
                 'name' => 'Super Admin',
