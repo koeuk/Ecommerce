@@ -49,9 +49,9 @@ const submit = () => {
                 class="relative hidden flex-col justify-end bg-gradient-to-br from-gray-900 via-gray-900 to-brand-950 p-10 lg:flex"
             >
                 <div
-                    class="absolute left-10 top-10 flex h-11 w-11 items-center justify-center rounded-xl bg-brand-700 text-lg font-bold text-gray-900"
+                    class="absolute left-10 top-10 flex h-11 w-11 items-center justify-center rounded-xl bg-brand-700 text-lg font-bold text-white"
                 >
-                    V
+                    B
                 </div>
 
                 <div class="mb-10">
@@ -81,9 +81,9 @@ const submit = () => {
             <div class="flex flex-col p-8 sm:p-12">
                 <div class="mb-10 flex items-center justify-between">
                     <div
-                        class="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-700 text-sm font-bold text-gray-900 lg:hidden"
+                        class="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-700 text-sm font-bold text-white lg:hidden"
                     >
-                        V
+                        B
                     </div>
                     <span class="ml-auto text-xs text-gray-400">Staff access only</span>
                 </div>
@@ -190,7 +190,7 @@ const submit = () => {
                         <button
                             type="submit"
                             :disabled="form.processing"
-                            class="flex w-full items-center justify-center gap-2 rounded-lg bg-brand-700 px-5 py-2.5 text-sm font-semibold text-gray-900 transition hover:bg-brand-600 focus:ring-4 focus:ring-brand-200 disabled:cursor-not-allowed disabled:opacity-60"
+                            class="flex w-full items-center justify-center gap-2 rounded-lg bg-brand-700 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-800 focus:ring-4 focus:ring-brand-200 disabled:cursor-not-allowed disabled:opacity-60"
                         >
                             <svg v-if="form.processing" class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
                                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
@@ -212,7 +212,7 @@ const submit = () => {
                 </div>
 
                 <div class="mt-10 flex items-center justify-between text-xs text-gray-400">
-                    <span>© {{ new Date().getFullYear() }} Veha Electronics</span>
+                    <span>© {{ new Date().getFullYear() }} Boomer</span>
                     <span>Too many attempts will lock sign-in</span>
                 </div>
             </div>

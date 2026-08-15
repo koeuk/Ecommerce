@@ -114,7 +114,7 @@ class ReferenceDataSeeder extends Seeder
     private function settings(): void
     {
         $settings = [
-            ['general', 'store_name', ['en' => 'Veha Electronics', 'km' => 'វេហា អេឡិចត្រូនិច']],
+            ['general', 'store_name', ['en' => 'Boomer', 'km' => 'Boomer']],
             ['general', 'store_email', 'support@example.com'],
             ['general', 'store_phone', '+855 12 345 678'],
             ['general', 'store_address', ['en' => 'Phnom Penh, Cambodia']],

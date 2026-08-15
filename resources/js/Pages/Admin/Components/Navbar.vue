@@ -62,10 +62,10 @@ onUnmounted(() => document.removeEventListener('click', onClickOutside))
                     <span
                         class="mr-2.5 flex size-8 items-center justify-center rounded-lg bg-brand-700 text-sm font-bold text-white"
                     >
-                        V
+                        B
                     </span>
                     <span class="self-center whitespace-nowrap text-lg font-semibold dark:text-white">
-                        Veha Admin
+                        Boomer Admin
                     </span>
                 </Link>
             </div>
