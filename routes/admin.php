@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\Admin\BrandController;
 use App\Http\Controllers\Admin\CategoryController;
+use App\Http\Controllers\Admin\InventoryController;
 use App\Http\Controllers\Admin\ProductController;
 use Illuminate\Support\Facades\Route;
 
@@ -81,3 +82,13 @@ Route::middleware('can:update product')->group(function () {
 Route::delete('products/{product:id}', [ProductController::class, 'destroy'])
     ->middleware('can:delete product')
     ->name('products.destroy');
+
+// Inventory
+Route::middleware('can:view inventory')->group(function () {
+    Route::get('inventory', [InventoryController::class, 'index'])->name('inventory.index');
+    Route::get('inventory/{variant:id}/history', [InventoryController::class, 'history'])->name('inventory.history');
+});
+
+Route::put('inventory/{variant:id}/adjust', [InventoryController::class, 'adjust'])
+    ->middleware('can:update inventory')
+    ->name('inventory.adjust');
