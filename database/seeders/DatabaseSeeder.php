@@ -22,10 +22,12 @@ class DatabaseSeeder extends Seeder
 
     private function accounts(): void
     {
+        // The password cast hashes this on save.
         User::factory()
             ->create([
-                'name' => 'Super Admin',
-                'email' => 'admin@example.com',
+                'name' => 'Koeuk Kos',
+                'email' => 'koeukkos@gmail.com',
+                'password' => '12345678',
                 'phone' => '+855 12 345 678',
             ])
             ->assignRole(Role::SuperAdmin->value);
