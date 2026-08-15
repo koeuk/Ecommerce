@@ -2,12 +2,10 @@
 
 **Project:** Computer, electronics accessories & watch store
 **Stack:** Laravel 12.66 · PHP 8.4 · Inertia 2 · Vue 3 · Tailwind + Flowbite · Vite · MySQL
-**Status:** Phase 1 cleanup complete — schema rewrite pending on [Appendix E](#appendix-e--open-decisions)
+**Status:** Phases 1–2 complete · 41 tables · 39 tests passing · next up **Phase 3 — Catalog Admin**
 
-> ⚠️ **Skeleton mismatch.** The framework is Laravel 12, but the app still uses the **Laravel 10
-> skeleton** — `bootstrap/app.php` binds `App\Http\Kernel::class`, and middleware is registered in
-> `app/Http/Kernel.php`. This *works* (Laravel 12 keeps backwards compatibility) and the app boots
-> fine, but it is not the modern structure. See [decision 4](#4-skeleton--keep-laravel-10-style-or-migrate-to-the-laravel-12-structure).
+> **Carried debt:** ~24 catalog models and all catalog seeders (§1.6 / §1.7) are still unwritten.
+> Phase 3 is blocked on them.
 
 ---
 
@@ -15,18 +13,20 @@
 
 **Build phases**
 
-| Phase | Title | Outcome |
-|---|---|---|
-| [1](#phase-1--cleanup--foundation) | Cleanup & Foundation | Clean codebase, correct schema, working models |
-| [2](#phase-2--roles-permissions--admin-auth) | Roles, Permissions & Admin Auth | Admin can log in; `isAdmin` retired |
-| [3](#phase-3--catalog-admin) | Catalog Admin | Products with variants, specs & images manageable |
-| [4](#phase-4--storefront-catalog) | Storefront Catalog | Customers can browse, filter and view products |
-| [5](#phase-5--cart) | Cart | Guest + user carts that survive login |
-| [6](#phase-6--checkout--orders-cod) | Checkout & Orders (COD) | **First real order can be placed** |
-| [7](#phase-7--payments) | Payments | Online payment gateways live |
-| [8](#phase-8--order-management-admin) | Order Management Admin | Staff can fulfil orders end to end |
-| [9](#phase-9--customer-account--engagement) | Customer Account & Engagement | Accounts, wishlist, reviews |
-| [10](#phase-10--growth--polish) | Growth & Polish | Coupons, reports, compare, SEO |
+| | Phase | Title | Outcome |
+|---|---|---|---|
+| ✅ | [1](#-phase-1--cleanup--foundation) | Cleanup & Foundation | Clean codebase, correct schema — *models/seeders outstanding* |
+| ✅ | [2](#-phase-2--roles-permissions--admin-auth) | Roles, Permissions & Admin Auth | Admin can log in; `isAdmin` retired |
+| ⬜ | [3](#-phase-3--catalog-admin) | Catalog Admin | Products with variants, specs & images manageable |
+| ⬜ | [4](#-phase-4--storefront-catalog) | Storefront Catalog | Customers can browse, filter and view products |
+| ⬜ | [5](#-phase-5--cart) | Cart | Guest + user carts that survive login |
+| ⬜ | [6](#-phase-6--checkout--orders-cod) | Checkout & Orders (COD) | **First real order can be placed** |
+| ⬜ | [7](#-phase-7--payments) | Payments | Online payment gateways live |
+| ⬜ | [8](#-phase-8--order-management-admin) | Order Management Admin | Staff can fulfil orders end to end |
+| ⬜ | [9](#-phase-9--customer-account--engagement) | Customer Account & Engagement | Accounts, wishlist, reviews |
+| ⬜ | [10](#-phase-10--growth--polish) | Growth & Polish | Coupons, reports, compare, SEO |
+
+**Legend:** ✅ done · 🔄 partial · ⬜ not started · `[~]` skipped deliberately
 
 **Reference**
 
@@ -34,13 +34,13 @@
 - [Appendix B — Category taxonomy](#appendix-b--category-taxonomy)
 - [Appendix C — Packages](#appendix-c--packages)
 - [Appendix D — Cross-cutting concerns](#appendix-d--cross-cutting-concerns)
-- [Appendix E — Open decisions](#appendix-e--open-decisions)
+- [Appendix E — Decisions (settled)](#appendix-e--decisions-settled)
 
 ---
 
 ## The core problem
 
-The current `products` table is **flat** — one price, one `quantity`. Selling laptops and watches
+The original `products` table was **flat** — one price, one `quantity`. Selling laptops and watches
 means:
 
 - **Variants** — 16GB/512GB vs 32GB/1TB, 41mm vs 45mm case, strap colour
@@ -48,23 +48,23 @@ means:
 
 Everything below assumes variants and specs get modelled properly in Phase 1.
 
-> ⚠️ **Settle [Appendix E](#appendix-e--open-decisions) before starting Phase 1.** Market,
-> language and variant decisions all change the schema you are about to write.
+> ✅ **Resolved in Phase 1.** Variants, specs and translatable columns are all in the schema.
+> See [Appendix E](#appendix-e--decisions-settled) for the decisions as applied.
 
 ---
 
-# Phase 1 — Cleanup & Foundation
+# ✅ Phase 1 — Cleanup & Foundation
 
 > **Goal:** a clean codebase with a correct schema and working models.
 > Nothing user-facing ships in this phase.
 
-### 1.1 Checkpoint
+### ✅ 1.1 Checkpoint
 
 ```bash
 git add -A && git commit -m "checkpoint before cleanup"
 ```
 
-### 1.2 Fix the blockers
+### ✅ 1.2 Fix the blockers
 
 | Issue | File |
 |---|---|
@@ -77,7 +77,7 @@ git add -A && git commit -m "checkpoint before cleanup"
 | `products` mixes `created_by` with `update_by` / `delete_by` | products migration |
 | `->nullable()` chained after `->on()` — no effect | `user_addresses` migration:26 |
 
-### 1.3 Delete
+### ✅ 1.3 Delete
 
 **Verdict: clean now.** There are **8 stub controllers × 7 empty methods = 56 methods with zero
 logic**. You are deleting empty shells, not working code. This gets expensive later; right now it
@@ -90,7 +90,7 @@ costs nothing.
 | `.erd.json` | Empty ERD — `tableIds: []`, zero tables |
 | `resources/js/Pages/Admin/Components/Footer.vue` | 0 bytes |
 
-### 1.4 Rewrite
+### ✅ 1.4 Rewrite
 
 | What | Change |
 |---|---|
@@ -98,7 +98,7 @@ costs nothing.
 | `app/Http/Middleware/redirectAdmin.php` | Rename to `RedirectIfAdmin`. It *works*, but a lowercase class name breaks PSR-1 and trips static analysis |
 | `app/Models/Product.php`, `CartItem.php` | Fix broken relations; add `$fillable` / `$casts` |
 
-### 1.5 Keep as-is
+### ✅ 1.5 Keep as-is
 
 - **All Breeze auth** — controllers, form requests, `Pages/Auth/*.vue`, `Layouts/`, `Components/`
 - **`Sidebar.vue` + `Navbar.vue`** — 824 lines of working Flowbite markup. Keep it; just swap
@@ -110,43 +110,60 @@ costs nothing.
 > **Already fine, no action:** `.env` is correctly gitignored and untracked ✓ ·
 > `Kernel.php:5` properly imports the `redirectAdmin` middleware ✓
 
-### 1.6 Build the model layer
+### 🔄 1.6 Build the model layer
 
-- All models get `$fillable`, `$casts`, relationships — currently every one is empty
-- Slug generation (`spatie/laravel-sluggable` or a `boot()` hook)
-- Scopes: `published()`, `inStock()`, `featured()`, `filter()`
-- Accessors: `final_price`, `discount_percent`, `primary_image_url`, `is_low_stock`
+- [x] `GeneratesSlug` trait — unique slug from the English value on create
+- [x] **Brand**, **Category** (self-referencing tree), **Tag** — `HasTranslations`, relations, scopes
+- [x] **User** — `HasRoles`, soft deletes, relations, `isAdmin()`
+- [x] **CartItem**, **Product** — relations fixed *(still need full `$fillable` / `$casts`)*
+- [ ] **~24 remaining models** — ProductVariant, Attribute, AttributeValue, ProductImage,
+      ProductSpecification, Order, OrderItem, OrderStatusHistory, Payment, Refund, RefundItem,
+      UserAddress, Review, ReviewImage, Wishlist, Coupon, CouponUsage, CouponTarget, Currency,
+      TaxRate, Setting, ShippingZone, ShippingMethod, InventoryMovement
+- [ ] Scopes: `published()`, `inStock()`, `featured()`, `filter()`
+- [ ] Accessors: `final_price`, `discount_percent`, `primary_image_url`, `is_low_stock`
 
-### 1.7 Seeders & factories
+### 🔄 1.7 Seeders & factories
 
-Realistic catalog data you can develop against — brands, a category tree, ~50 products with
-variants and specs. Everything after this depends on having data to look at.
+- [x] **RoleSeeder** — 4 roles, 56 permissions
+- [x] **DatabaseSeeder** — 3 sample accounts (admin / manager / customer, password `password`)
+- [x] **UserFactory** — with `unverified()` and `inactive()` states
+- [ ] **Catalog seeders** — brands, the category tree, attributes, ~50 products with variants,
+      specs and images. Everything in Phase 3 and 4 needs data to look at
+- [ ] Factories for Product, ProductVariant, Order
 
 **✅ Done when:** `migrate:fresh --seed` produces a full catalog, and every model relationship
 resolves in `tinker`.
 
 ---
 
-# Phase 2 — Roles, Permissions & Admin Auth
+# ✅ Phase 2 — Roles, Permissions & Admin Auth
 
 > **Goal:** admin can actually log in. Right now the route points at a missing method.
 
-- [ ] Install `spatie/laravel-permission`
-- [ ] Roles: `super-admin`, `manager`, `staff`, `customer`
-- [ ] **Drop `users.isAdmin`** — replaced by roles
-- [ ] Merge `AdminAuthController` + `AdminController` into one; fix route → method bindings
-- [ ] Update `AdminMiddleware` to check role, not the boolean; fix the `route('home')` redirect
-- [ ] `users` table: add `phone`, `avatar`, `last_login_at`, `is_active`
-- [ ] Policies scaffolded: `ProductPolicy`, `OrderPolicy`, `ReviewPolicy`, `CouponPolicy`
-- [ ] Rate-limit the admin login route
-- [ ] Install `spatie/laravel-activitylog` for the admin audit trail
+- [x] Install `spatie/laravel-permission`
+- [x] Roles: `super-admin`, `manager`, `staff`, `customer`
+- [x] **Drop `users.isAdmin`** — replaced by roles
+- [~] ~~Merge `AdminAuthController` + `AdminController`~~ — **skipped deliberately.** The route→method
+      mismatch that motivated this was fixed in Phase 1; merging auth with dashboard rendering
+      would put two unrelated concerns in one class. Route bindings ✅
+- [x] Update `AdminMiddleware` to check role, not the boolean; fix the `route('home')` redirect
+- [x] `users` table: add `phone`, `avatar`, `last_login_at`, `is_active`
+- [ ] Policies scaffolded: `ProductPolicy`, `OrderPolicy`, `ReviewPolicy`, `CouponPolicy` — **deferred to Phase 3**, they need the catalog models
+- [x] Rate-limit the admin login route (5/min per email + IP)
+- [x] Install `spatie/laravel-activitylog` for the admin audit trail
 
-**✅ Done when:** a seeded admin logs in and reaches the dashboard; a customer hitting `/admin`
-is redirected, not 500'd.
+**✅ Done —** verified by 14 tests in `tests/Feature/Admin/`. Beyond the original scope, the login
+flow now also rejects deactivated accounts and tears down the session for authenticated
+non-admins rather than leaving them logged in.
+
+> **Note:** `User` is soft-deleted so past orders keep their customer attribution. Trade-off — a
+> deleted email still occupies the unique index, so that person cannot re-register until the row
+> is restored or purged.
 
 ---
 
-# Phase 3 — Catalog Admin
+# ⬜ Phase 3 — Catalog Admin
 
 > **Goal:** you can manage the full product catalog. The biggest phase — budget accordingly.
 
@@ -172,7 +189,7 @@ Wire the existing Flowbite sidebar links to real routes as you go.
 
 ---
 
-# Phase 4 — Storefront Catalog
+# ⬜ Phase 4 — Storefront Catalog
 
 > **Goal:** customers can browse and evaluate products. No cart yet.
 
@@ -192,7 +209,7 @@ open a product with a working variant picker.
 
 ---
 
-# Phase 5 — Cart
+# ⬜ Phase 5 — Cart
 
 > **Goal:** guest and logged-in carts that behave correctly across login.
 
@@ -207,7 +224,7 @@ open a product with a working variant picker.
 
 ---
 
-# Phase 6 — Checkout & Orders (COD)
+# ⬜ Phase 6 — Checkout & Orders (COD)
 
 > **Goal:** **the first real order can be placed.** Cash on Delivery only — no gateway
 > integration needed, which unblocks the entire flow.
@@ -231,7 +248,7 @@ correct total.
 
 ---
 
-# Phase 7 — Payments
+# ⬜ Phase 7 — Payments
 
 > **Goal:** take money online.
 
@@ -247,7 +264,7 @@ correct total.
 
 ---
 
-# Phase 8 — Order Management Admin
+# ⬜ Phase 8 — Order Management Admin
 
 > **Goal:** staff can fulfil orders end to end.
 
@@ -268,7 +285,7 @@ at each step and a printable invoice.
 
 ---
 
-# Phase 9 — Customer Account & Engagement
+# ⬜ Phase 9 — Customer Account & Engagement
 
 - [ ] **Account** — dashboard, order list + detail, addresses CRUD, profile/password
 - [ ] **Wishlist**
@@ -281,7 +298,7 @@ product page after approval.
 
 ---
 
-# Phase 10 — Growth & Polish
+# ⬜ Phase 10 — Growth & Polish
 
 - [ ] **Coupons** — CRUD, usage limits, per-user limits, scoped to category/brand/product
 - [ ] **Reports** — sales by period / category / brand, best sellers, low performers, CSV export
