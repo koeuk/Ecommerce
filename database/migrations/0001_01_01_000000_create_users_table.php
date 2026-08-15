@@ -16,10 +16,6 @@ return new class extends Migration
             $table->string('avatar')->nullable();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
-
-            // Replaced by spatie/laravel-permission roles in Phase 2
-            $table->boolean('isAdmin')->default(false);
-
             $table->boolean('is_active')->default(true);
             $table->timestamp('last_login_at')->nullable();
             $table->rememberToken();

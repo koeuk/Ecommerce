@@ -40,7 +40,9 @@ Route::middleware('auth')->group(function () {
 // admin routes
 Route::prefix('admin')->middleware('redirectAdmin')->group(function () {
     Route::get('login', [AdminAuthController::class, 'showLoginForm'])->name('admin.login');
-    Route::post('login', [AdminAuthController::class, 'login'])->name('admin.login.post');
+    Route::post('login', [AdminAuthController::class, 'login'])
+        ->middleware('throttle:admin-login')
+        ->name('admin.login.post');
 });
 
 Route::post('admin/logout', [AdminAuthController::class, 'logout'])

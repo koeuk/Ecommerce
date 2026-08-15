@@ -10,13 +10,13 @@ use Symfony\Component\HttpFoundation\Response;
 class RedirectIfAdmin
 {
     /**
-     * Handle an incoming request.
+     * Keeps an already-authenticated admin away from the admin login screen.
      *
      * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
      */
-    public function handle(Request $request, Closure $next, $guard = null): Response
+    public function handle(Request $request, Closure $next, ?string $guard = null): Response
     {
-        if (Auth::guard($guard)->check() && Auth::user()->isAdmin == 1) {
+        if (Auth::guard($guard)->check() && Auth::user()->isAdmin()) {
             return redirect()->route('admin.dashboard');
         }
 
