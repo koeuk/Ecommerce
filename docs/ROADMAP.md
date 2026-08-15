@@ -1,11 +1,19 @@
 # E-Commerce Build Roadmap
 
-**Project:** Computer, electronics accessories & watch store
+**Project:** Computer, electronics accessories & watch store — **personal, single shop**
 **Stack:** Laravel 12.66 · PHP 8.4 · Inertia 2 · Vue 3 · Tailwind + Flowbite · Vite · MySQL
-**Status:** Phases 1–2 complete · 41 tables · 39 tests passing · next up **Phase 3 — Catalog Admin**
+**Status:** Phases 1–2 complete · 41 tables · 26 models · 39 tests passing · next up **Phase 3**
 
-> **Carried debt:** ~24 catalog models and all catalog seeders (§1.6 / §1.7) are still unwritten.
-> Phase 3 is blocked on them.
+> ### 📐 Scale: personal single shop
+>
+> Phases 3–10 are scoped for **one owner running one shop**, not a team or a marketplace. Each
+> phase has a **Core** list and an explicit **Skip for now** table with the reasoning.
+>
+> **The schema stays as designed.** Unused tables cost nothing — no maintenance, no runtime cost.
+> What costs real time is building admin screens for features you don't need, so that is what
+> gets cut. If the shop grows, the tables are already there.
+>
+> Roughly **40% less work** to a shippable shop than the original scope.
 
 ---
 
@@ -21,12 +29,14 @@
 | ⬜ | [4](#-phase-4--storefront-catalog) | Storefront Catalog | Customers can browse, filter and view products |
 | ⬜ | [5](#-phase-5--cart) | Cart | Guest + user carts that survive login |
 | ⬜ | [6](#-phase-6--checkout--orders-cod) | Checkout & Orders (COD) | **First real order can be placed** |
-| ⬜ | [7](#-phase-7--payments) | Payments | Online payment gateways live |
-| ⬜ | [8](#-phase-8--order-management-admin) | Order Management Admin | Staff can fulfil orders end to end |
-| ⬜ | [9](#-phase-9--customer-account--engagement) | Customer Account & Engagement | Accounts, wishlist, reviews |
-| ⬜ | [10](#-phase-10--growth--polish) | Growth & Polish | Coupons, reports, compare, SEO |
+| ⬜ | [7](#-phase-7--payments) | Payments *(optional)* | One gateway live — COD-only is viable |
+| ⬜ | [8](#-phase-8--order-management-admin) | Order Management Admin | You can fulfil orders end to end |
+| ⬜ | [9](#-phase-9--customer-account) | Customer Account | Order history, addresses, wishlist |
+| ⬜ | [10](#-phase-10--polish) | Polish | SEO, performance, security, backups |
 
 **Legend:** ✅ done · 🔄 partial · ⬜ not started · `[~]` skipped deliberately
+
+Each unbuilt phase lists **Core** (build it) and **Skip for now** (with reasons).
 
 **Reference**
 
@@ -165,26 +175,35 @@ non-admins rather than leaving them logged in.
 
 # ⬜ Phase 3 — Catalog Admin
 
-> **Goal:** you can manage the full product catalog. The biggest phase — budget accordingly.
+> **Goal:** you can manage the products you actually sell. The biggest phase — budget accordingly.
 
 Wire the existing Flowbite sidebar links to real routes as you go.
 
-- [ ] **Brands** — CRUD, logo upload, active toggle, sort order
-- [ ] **Categories** — nested tree CRUD with drag-reorder ([Appendix B](#appendix-b--category-taxonomy))
-- [ ] **Attributes & values** — RAM, Storage, Colour, Case Size, Strap Material
-- [ ] **Tags** — CRUD
+### Core — build this
+
 - [ ] **Products** — the centrepiece:
-  - [ ] List: search, filter by category/brand/status, bulk actions
-  - [ ] Rich text description (TipTap)
+  - [ ] List: search, filter by category/brand/status
+  - [ ] Create/edit: title, description, price, stock, warranty, condition, release year
   - [ ] **Variant matrix generator** — pick attributes, auto-generate SKU rows with price + stock
   - [ ] Drag-drop multi-image upload with reorder + primary flag
   - [ ] Spec-sheet builder (grouped key/value rows)
-  - [ ] SEO fields, warranty months, condition, release year
-  - [ ] Duplicate product
+  - [ ] Duplicate product — the fastest way to add your 40th similar item
+- [ ] **Categories** — nested tree CRUD ([Appendix B](#appendix-b--category-taxonomy))
+- [ ] **Brands** — CRUD, logo upload
 - [ ] **Media** — `spatie/laravel-medialibrary` + `intervention/image`, thumbnails, WebP
-- [ ] **Inventory** — stock levels, low-stock view, bulk adjust, `inventory_movements` history
+- [ ] **Inventory** — stock levels + low-stock view
 
-**✅ Done when:** you can create a gaming laptop with 4 RAM/storage variants, 8 images, a
+### Skip for now
+
+| Skipped | Why | Fallback |
+|---|---|---|
+| Attributes & values admin UI | 7 attributes, 35 values, already seeded. You'll change them maybe twice a year | Edit the seeder, re-run it |
+| Tags admin UI | Same — low churn | Seeder |
+| Bulk actions | Useful at 500 products, not at 50 | Edit individually |
+| Drag-reorder on the category tree | A `sort_order` number field does the same job | Number input |
+| `inventory_movements` history UI | The rows still get written; you just don't browse them | Query the table if you ever need it |
+
+**✅ Done when:** you can create a gaming laptop with 4 RAM/storage variants, 8 images and a
 20-row spec sheet, and see correct per-variant stock.
 
 ---
@@ -193,19 +212,29 @@ Wire the existing Flowbite sidebar links to real routes as you go.
 
 > **Goal:** customers can browse and evaluate products. No cart yet.
 
-- [ ] Storefront layout — header, nav from category tree, footer, mobile menu
-- [ ] **Home** — hero/banner slider, featured categories, deals, new arrivals, best sellers, brand strip
-- [ ] **Category / listing** — **faceted filters are essential here**: brand, price range, CPU,
-      RAM, storage, screen size, case size, movement type, in-stock, rating. Plus sort,
-      pagination, grid/list toggle
-- [ ] **Product detail** — image gallery with zoom, variant picker (disable unavailable combos),
-      price + stock, **spec table**, warranty info, related products
-- [ ] **Search** — MySQL FULLTEXT to start, autocomplete dropdown, results page, no-results suggestions
-- [ ] Recently viewed
-- [ ] **Static pages** — about, contact, FAQ, warranty, returns, shipping, privacy, terms
+### Core — build this
 
-**✅ Done when:** a customer can filter to "Gaming Laptops, Asus, 16GB RAM, under $1500" and
-open a product with a working variant picker.
+- [ ] Storefront layout — header, nav from category tree, footer, mobile menu
+- [ ] **Home** — hero banner, featured categories, new arrivals, best sellers
+- [ ] **Category / listing** — filters that matter for electronics: **brand, price range, in-stock**.
+      Plus sort and pagination
+- [ ] **Product detail** — image gallery, variant picker (disable unavailable combos),
+      price + stock, **spec table**, warranty info, related products
+- [ ] **Search** — MySQL FULLTEXT, results page
+- [ ] **Static pages** — about, contact, warranty, returns, shipping policy
+
+### Skip for now
+
+| Skipped | Why |
+|---|---|
+| Deep spec faceting (CPU, RAM, screen size as filters) | Needs specs promoted to indexed columns. Brand + price covers most of the value at your catalog size |
+| Search autocomplete | The results page is enough under a few hundred products |
+| Recently viewed | Pure nice-to-have |
+| Grid/list toggle | Pick one layout |
+| Banner slider | One static hero image converts about as well and is far less code |
+
+**✅ Done when:** a customer can filter to "Laptops, Asus, under $1500" and open a product with a
+working variant picker.
 
 ---
 
@@ -213,12 +242,13 @@ open a product with a working variant picker.
 
 > **Goal:** guest and logged-in carts that behave correctly across login.
 
-- [ ] `cart_items`: add `product_variant_id`, `session_id` (guest), `price_at_add`; `user_id` nullable
 - [ ] **`CartService`** — add / update / remove, and **merge guest cart into user cart on login**
       (the part that's easy to get wrong)
-- [ ] Cart page — quantity update, totals summary, stock re-validation
+- [ ] Cart page — quantity update, totals, stock re-validation
 - [ ] Mini-cart dropdown in the header
 - [ ] Cart count shared via `HandleInertiaRequests`
+
+> Schema is already done — `cart_items` has `product_variant_id`, `session_id` and `price_at_add`.
 
 **✅ Done when:** add to cart as a guest, log in, and the items are still there — with no duplicates.
 
@@ -229,19 +259,24 @@ open a product with a working variant picker.
 > **Goal:** **the first real order can be placed.** Cash on Delivery only — no gateway
 > integration needed, which unblocks the entire flow.
 
-- [ ] `user_addresses`: add `receiver_name`, `phone`, `is_default_shipping`, `is_default_billing`
-- [ ] `shipping_methods` + `shipping_zones` — Phnom Penh vs provinces, flat or weight-based
-- [ ] `tax_rates`
-- [ ] **Checkout flow** — guest + logged-in, address form, shipping method, payment method
-      (COD), order review
-- [ ] **`CheckoutService`** — validate stock → reserve → create order → confirm
-- [ ] **`PricingService`** — variant price, tax, shipping, totals
+### Core — build this
+
+- [ ] **Checkout flow** — guest + logged-in, address form, shipping method, COD, order review
+- [ ] **`CheckoutService`** — validate stock → create order → decrement stock
+- [ ] **`PricingService`** — variant price, shipping, totals
 - [ ] **`InventoryService`** — decrement on order, restock on cancel
 - [ ] `OrderNumberGenerator` — `ORD-20260816-0001`
-- [ ] **Snapshot** shipping/billing address as JSON on the order, and product name/SKU/price on
-      order items — see [Appendix A](#a4-cart--checkout) for why
-- [ ] `order_status_histories`
 - [ ] Order confirmation page + order tracking by number (guests included)
+- [ ] Customer address book (create/edit/default)
+
+> Already built: `ShippingZone::forProvince()` resolves Phnom Penh vs provinces,
+> `ShippingMethod::calculate()` handles flat/weight/free-threshold, `UserAddress::toSnapshot()`
+> flattens for JSON storage.
+
+### Decide, don't assume
+
+- [ ] **Tax** — do you actually charge VAT? If not, set `tax_total` to 0 and skip `PricingService`
+      tax logic entirely. The `tax_rates` table can sit unused.
 
 **✅ Done when:** a guest completes checkout, stock decrements, and the order appears with a
 correct total.
@@ -250,70 +285,95 @@ correct total.
 
 # ⬜ Phase 7 — Payments
 
-> **Goal:** take money online.
+> **Goal:** take money online. **Optional** — plenty of Cambodian shops run COD-only indefinitely.
 
 - [ ] Abstract a `PaymentGateway` interface so new gateways never touch checkout code
-- [ ] **Cambodia:** ABA PayWay, Bakong KHQR, Wing
-- [ ] **International:** Stripe / PayPal (only if selling abroad — see [Appendix E](#appendix-e--open-decisions))
-- [ ] `payments`: add `transaction_id`, `gateway`, `gateway_payload` JSON, `paid_at`, `refunded_at`
+- [ ] **Start with one gateway.** ABA PayWay or Bakong KHQR — whichever your bank already supports
 - [ ] Webhook handling + signature verification
-- [ ] Payment status transitions, failed-payment retry
-- [ ] `refunds` / RMA table — expect returns with electronics
+- [ ] Payment status transitions
 
-**✅ Done when:** a real (sandbox) payment completes and the webhook flips the order to paid.
+### Skip for now
+
+| Skipped | Why |
+|---|---|
+| Multiple gateways at once | Integrate one, prove it, then add another |
+| Stripe / PayPal | Cambodia-only ([Appendix E](#appendix-e--decisions-settled)) |
+| Automated refund API calls | Refund manually in the bank portal, mark the order refunded in admin |
 
 ---
 
 # ⬜ Phase 8 — Order Management Admin
 
-> **Goal:** staff can fulfil orders end to end.
+> **Goal:** you can fulfil orders end to end.
 
-- [ ] **Orders admin** — list with status/date/payment filters; detail page (items, customer,
-      addresses, timeline, payment); status transitions; refund
-- [ ] **Invoices + packing slips** — `barryvdh/laravel-dompdf`
-- [ ] **Customers admin** — list, detail with order history and lifetime value
-- [ ] **Emails** — order confirmation, shipped, delivered, cancelled, low-stock admin alert
-- [ ] Events → listeners → jobs: `OrderPlaced`, `OrderStatusChanged`, `PaymentSucceeded`,
-      `LowStockDetected`
-- [ ] ⚠️ **Switch `QUEUE_CONNECTION` off `sync`** — right now every email blocks the request
+### Core — build this
+
+- [ ] **Orders admin** — list with status/date filters; detail page (items, customer, address,
+      timeline); status transitions
+- [ ] **Invoices + delivery notes** — `barryvdh/laravel-dompdf`
+- [ ] **Emails** — order confirmation, shipped, delivered
+- [ ] ⚠️ **Switch `QUEUE_CONNECTION` off `sync`** — every email currently blocks the request.
+      Tables already exist; it's a one-line `.env` change
 - [ ] Configure real SMTP (`MAIL_HOST=mailpit` is dev-only)
-- [ ] **Dashboard overview** — replace the placeholder boxes: revenue today/week/month, orders by
-      status, low-stock alerts, top products, recent orders, sales chart
+- [ ] **Dashboard** — replace the placeholder boxes: today's revenue, orders by status,
+      low-stock alerts, recent orders
 
-**✅ Done when:** an order can go placed → paid → shipped → delivered, with the customer emailed
-at each step and a printable invoice.
+> `OrderStatus` already encodes its own legal transitions and stock-release rule, so the admin
+> just calls `canTransitionTo()`.
+
+### Skip for now
+
+| Skipped | Why |
+|---|---|
+| Customers admin (list, lifetime value) | You can see who ordered from the order itself |
+| Reports module + CSV export | A few SQL queries when you're curious beats a reporting UI |
+| Sales charts | Same |
+| Activity log UI | Rows still get written; browse the table if needed |
+
+**✅ Done when:** an order can go placed → confirmed → shipped → delivered, with the customer
+emailed at each step and a printable invoice.
 
 ---
 
-# ⬜ Phase 9 — Customer Account & Engagement
+# ⬜ Phase 9 — Customer Account
 
-- [ ] **Account** — dashboard, order list + detail, addresses CRUD, profile/password
-- [ ] **Wishlist**
-- [ ] **Reviews** — submit (verified-purchase flag from order history), review images
-- [ ] **Review moderation admin** — approve/reject queue, admin reply
-- [ ] Rating aggregation back onto `products.rating_avg` / `rating_count`
+> **Goal:** returning customers can see their history.
 
-**✅ Done when:** a customer who received an order can review it, and the rating shows on the
-product page after approval.
+- [ ] **Account** — order list + detail, addresses, profile/password
+- [ ] **Wishlist** — cheap to add, genuinely used
+
+### Skip for now
+
+| Skipped | Why |
+|---|---|
+| Reviews + moderation queue | Real work (submission, verified-purchase check, moderation UI, rating aggregation) for something a new shop has almost none of. The tables are there when you want it |
+| Review images | Same |
 
 ---
 
-# ⬜ Phase 10 — Growth & Polish
+# ⬜ Phase 10 — Polish
 
-- [ ] **Coupons** — CRUD, usage limits, per-user limits, scoped to category/brand/product
-- [ ] **Reports** — sales by period / category / brand, best sellers, low performers, CSV export
-- [ ] **Compare** — side-by-side spec comparison. High value for computers; a real differentiator
-- [ ] **Search upgrade** — `laravel/scout` + Meilisearch once the catalog outgrows FULLTEXT
+> **Goal:** make it fast and findable. Do these before launch, not after.
+
 - [ ] **SEO** — slug routes, `sitemap.xml`, meta tags, Open Graph, JSON-LD Product schema
-      (gets rich results with price/rating)
-- [ ] **Performance** — eager-load to kill N+1, cache category tree + settings,
-      `CACHE_DRIVER=redis`, index `slug`/`sku`/`status`/FK columns
-- [ ] **Settings admin** — store info, shipping, tax, gateways, currency, email templates
-- [ ] `laravel/horizon` for queue monitoring
-- [ ] Flash sales / campaign pricing
+      (gets rich results with price and rating in Google)
+- [ ] **Performance** — eager-load to kill N+1, cache the category tree and settings,
+      `CACHE_DRIVER=redis`, paginate everywhere
+- [ ] **Security** — `APP_DEBUG=false`, rate-limit checkout, validate all uploads
 - [ ] Feature tests: cart, checkout, order creation, stock decrement
-- [ ] `APP_DEBUG=false` in production
+- [ ] Backups — a nightly `mysqldump` is enough
 
+### Skip for now
+
+| Skipped | Why |
+|---|---|
+| Coupons admin UI | `Coupon::discountFor()` is written. Add codes via tinker until you run real promotions |
+| Product compare | High value at scale, low at 50 products |
+| Meilisearch / Scout | MySQL FULLTEXT handles thousands of products |
+| Laravel Horizon | Only worth it once queues are busy |
+| Flash sales | `compare_at_price` already gives you strike-through pricing |
+
+---
 ---
 ---
 
@@ -497,13 +557,13 @@ composer require \
   spatie/laravel-medialibrary \  # product images             (Phase 3)
   intervention/image             # thumbnails / WebP          (Phase 3)
 
-# Phase 8+
-composer require \
-  barryvdh/laravel-dompdf \      # invoices & packing slips   (Phase 8)
-  maatwebsite/excel              # import / report export     (Phase 10)
+# Phase 8
+composer require barryvdh/laravel-dompdf   # invoices & delivery notes
 
-# Phase 10
-composer require laravel/scout laravel/horizon
+# Not needed at personal-shop scale — revisit only if you outgrow them
+#   maatwebsite/excel     report export      → a SQL query covers it
+#   laravel/scout         + Meilisearch      → MySQL FULLTEXT handles thousands of products
+#   laravel/horizon       queue monitoring   → only once queues are busy
 ```
 
 **Frontend:** TipTap (rich text editor), a chart library for the dashboard,
