@@ -527,35 +527,38 @@ composer require laravel/scout laravel/horizon
 
 ---
 
-# Appendix E — Open decisions
+# Appendix E — Decisions (settled)
 
-Three questions that change the schema. **Settle these before Phase 1.**
+| # | Decision | Answer | Consequence |
+|---|---|---|---|
+| 1 | **Market** | 🇰🇭 **Cambodia only** | USD + KHR dual pricing (fixed rate, not full FX). Gateways: ABA PayWay, Bakong KHQR, Wing, COD. Shipping zones = Phnom Penh vs provinces. **No** international tax/shipping matrix |
+| 2 | **Language** | **English + Khmer** | Product/category/brand text columns are **JSON translatable** (`spatie/laravel-translatable`). Admin gets per-locale input tabs. `config/app.php` locale `en`, fallback `en` |
+| 3 | **Variants** | **Yes** | `product_variants` + `attributes` + `attribute_values` as designed. Price and stock live on the variant, not the product |
+| 4 | **Skeleton** | **Migrated** ✅ | Laravel 12 structure — `bootstrap/app.php` + `bootstrap/providers.php`. Done in Phase 1 |
 
-### 1. Market — Cambodia only, or international?
+### Translatable columns
 
-Drives currency, payment gateways, shipping model. Affects Phases 1, 6, 7.
+These use `json` instead of `string` / `text`:
 
-### 2. Language — English only, or EN + KM?
-
-Retrofitting translations later is painful — it changes whether text columns are plain strings
-or JSON translatable. Affects Phase 1.
-
-### 3. Variants — confirmed needed?
-
-If every product is a single fixed SKU you can skip `product_variants` entirely and save
-significant complexity. But for laptops and watches, assume you need them. Affects Phases 1, 3, 5, 6.
-
-### 4. Skeleton — keep Laravel 10 style, or migrate to the Laravel 12 structure?
-
-The framework is on 12.66 but the app skeleton is still Laravel 10. Two options:
-
-| Option | What it means |
+| Table | Columns |
 |---|---|
-| **Keep as-is** | `app/Http/Kernel.php` stays. Works indefinitely — Laravel 12 maintains BC. Zero effort now |
-| **Migrate** | Delete `Kernel.php` + the 9 framework middleware stubs; move registration into `bootstrap/app.php` via `->withMiddleware()`. Modern, matches current docs and every tutorial you'll read |
+| `brands` | `name`, `description` |
+| `categories` | `name`, `description` |
+| `products` | `title`, `short_description`, `description`, `meta_title`, `meta_description` |
+| `attributes` | `name` |
+| `attribute_values` | `label` |
+| `product_specifications` | `group`, `key`, `value` |
+| `tags` | `name` |
+| `shipping_methods` | `name`, `description` |
+| `settings` | `value` (where the setting is user-facing text) |
 
-**Recommendation: migrate now.** You're pre-launch with almost no code, so it's a ~30 minute job.
-Later, with 40 controllers and custom middleware, it's a day. Affects Phase 2.
+> **Not translatable:** `slug` (single canonical URL), `sku`, and anything numeric or enum.
+
+### Currency approach
+
+Prices are stored **in USD** as the base. KHR is a display conversion driven by a rate in the
+`currencies` table. Orders snapshot both `currency` and `exchange_rate` at placement, so a later
+rate change never rewrites historical order totals.
 
 ---
 
