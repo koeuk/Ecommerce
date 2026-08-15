@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\Admin\BrandController;
 use App\Http\Controllers\Admin\CategoryController;
+use App\Http\Controllers\Admin\ProductController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -55,3 +56,28 @@ Route::middleware('can:update category')->group(function () {
 Route::delete('categories/{category}', [CategoryController::class, 'destroy'])
     ->middleware('can:delete category')
     ->name('categories.destroy');
+
+// Products
+Route::middleware('can:view product')->group(function () {
+    Route::get('products', [ProductController::class, 'index'])->name('products.index');
+});
+
+Route::middleware('can:create product')->group(function () {
+    Route::get('products/create', [ProductController::class, 'create'])->name('products.create');
+    Route::post('products', [ProductController::class, 'store'])->name('products.store');
+    Route::post('products/{product}/duplicate', [ProductController::class, 'duplicate'])->name('products.duplicate');
+});
+
+Route::middleware('can:update product')->group(function () {
+    Route::get('products/{product}/edit', [ProductController::class, 'edit'])->name('products.edit');
+    Route::put('products/{product}', [ProductController::class, 'update'])->name('products.update');
+
+    // Image sub-resources
+    Route::delete('products/{product}/images/{image}', [ProductController::class, 'deleteImage'])->name('products.images.destroy');
+    Route::put('products/{product}/images/reorder', [ProductController::class, 'reorderImages'])->name('products.images.reorder');
+    Route::put('products/{product}/images/{image}/primary', [ProductController::class, 'setPrimaryImage'])->name('products.images.primary');
+});
+
+Route::delete('products/{product}', [ProductController::class, 'destroy'])
+    ->middleware('can:delete product')
+    ->name('products.destroy');
