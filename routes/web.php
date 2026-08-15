@@ -1,9 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\AdminAuthController;
-use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\ProfileController;
-use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -18,14 +16,12 @@ use Inertia\Inertia;
 |
 */
 
-Route::get('/', function () {
-    return Inertia::render('Welcome', [
-        'canLogin' => Route::has('login'),
-        'canRegister' => Route::has('register'),
-        'laravelVersion' => Application::VERSION,
-        'phpVersion' => PHP_VERSION,
-    ]);
-})->name('home');
+/*
+ * The storefront is API-driven (routes/api.php), so the web app is the admin
+ * panel only. Hitting the root sends you to the admin login, which in turn
+ * bounces an already-authenticated admin on to the dashboard.
+ */
+Route::get('/', fn () => redirect()->route('admin.login'))->name('home');
 
 Route::get('/dashboard', function () {
     return Inertia::render('Dashboard');

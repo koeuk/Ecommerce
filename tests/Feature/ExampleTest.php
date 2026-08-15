@@ -2,18 +2,16 @@
 
 namespace Tests\Feature;
 
-// use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class ExampleTest extends TestCase
 {
     /**
-     * A basic test example.
+     * The storefront is API-driven, so the web root is not a page — it hands
+     * visitors straight to the admin login.
      */
-    public function test_the_application_returns_a_successful_response(): void
+    public function test_the_root_redirects_to_the_admin_login(): void
     {
-        $response = $this->get('/');
-
-        $response->assertStatus(200);
+        $this->get('/')->assertRedirect(route('admin.login'));
     }
 }
