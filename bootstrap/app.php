@@ -23,6 +23,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'guest' => \App\Http\Middleware\RedirectIfAuthenticated::class,
             'admin' => \App\Http\Middleware\AdminMiddleware::class,
             'redirectAdmin' => \App\Http\Middleware\RedirectIfAdmin::class,
+            'api.locale' => \App\Http\Middleware\SetApiLocale::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

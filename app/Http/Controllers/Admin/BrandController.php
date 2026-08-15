@@ -19,7 +19,7 @@ class BrandController extends Controller
     {
         $brands = QueryBuilder::for(Brand::class)
             ->withCount('products')
-            ->allowedFilters([
+            ->allowedFilters(...[
                 AllowedFilter::callback('search', fn ($query, $value) => $query->where(
                     fn ($q) => $q->where('name', 'like', "%{$value}%")
                         ->orWhere('slug', 'like', "%{$value}%")
@@ -29,7 +29,7 @@ class BrandController extends Controller
                     $value === 'active'
                 )),
             ])
-            ->allowedSorts(['sort_order', 'slug', 'created_at', 'products_count'])
+            ->allowedSorts(...['sort_order', 'slug', 'created_at', 'products_count'])
             ->defaultSort('sort_order')
             ->paginate(15)
             ->withQueryString()
@@ -45,7 +45,7 @@ class BrandController extends Controller
 
         return Inertia::render('Admin/Brands/Index', [
             'brands' => $brands,
-            'filters' => $request->only('search', 'status'),
+            'filters' => $request->input('filter', []),
         ]);
     }
 
