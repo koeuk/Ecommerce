@@ -1,8 +1,13 @@
 # E-Commerce Build Roadmap
 
 **Project:** Computer, electronics accessories & watch store
-**Stack:** Laravel 10 · Inertia · Vue 3 · Tailwind + Flowbite · Vite · MySQL
-**Status:** Early scaffold — schema drafted, admin shell partially built, no business logic yet
+**Stack:** Laravel 12.66 · PHP 8.4 · Inertia 2 · Vue 3 · Tailwind + Flowbite · Vite · MySQL
+**Status:** Phase 1 cleanup complete — schema rewrite pending on [Appendix E](#appendix-e--open-decisions)
+
+> ⚠️ **Skeleton mismatch.** The framework is Laravel 12, but the app still uses the **Laravel 10
+> skeleton** — `bootstrap/app.php` binds `App\Http\Kernel::class`, and middleware is registered in
+> `app/Http/Kernel.php`. This *works* (Laravel 12 keeps backwards compatibility) and the app boots
+> fine, but it is not the modern structure. See [decision 4](#4-skeleton--keep-laravel-10-style-or-migrate-to-the-laravel-12-structure).
 
 ---
 
@@ -539,6 +544,18 @@ or JSON translatable. Affects Phase 1.
 
 If every product is a single fixed SKU you can skip `product_variants` entirely and save
 significant complexity. But for laptops and watches, assume you need them. Affects Phases 1, 3, 5, 6.
+
+### 4. Skeleton — keep Laravel 10 style, or migrate to the Laravel 12 structure?
+
+The framework is on 12.66 but the app skeleton is still Laravel 10. Two options:
+
+| Option | What it means |
+|---|---|
+| **Keep as-is** | `app/Http/Kernel.php` stays. Works indefinitely — Laravel 12 maintains BC. Zero effort now |
+| **Migrate** | Delete `Kernel.php` + the 9 framework middleware stubs; move registration into `bootstrap/app.php` via `->withMiddleware()`. Modern, matches current docs and every tutorial you'll read |
+
+**Recommendation: migrate now.** You're pre-launch with almost no code, so it's a ~30 minute job.
+Later, with 40 controllers and custom middleware, it's a day. Affects Phase 2.
 
 ---
 
