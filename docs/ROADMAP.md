@@ -8,16 +8,28 @@
 
 ## Table of contents
 
-1. [Blockers to fix first](#0-blockers-to-fix-before-anything-new)
-2. [Cleanup — delete, rewrite, keep](#01-cleanup--delete-rewrite-keep)
-3. [Database changes](#1-database--tables-to-add-or-change)
-4. [Backend application layer](#2-backend--application-layer)
-5. [Admin dashboard pages](#3-admin-dashboard--pages-to-build)
-6. [Storefront pages](#4-storefront--pages-to-build)
-7. [Cross-cutting concerns](#5-cross-cutting-concerns)
-8. [Packages](#6-packages-worth-adding)
-9. [Build order](#7-suggested-build-order)
-10. [Open decisions](#8-open-decisions)
+**Build phases**
+
+| Phase | Title | Outcome |
+|---|---|---|
+| [1](#phase-1--cleanup--foundation) | Cleanup & Foundation | Clean codebase, correct schema, working models |
+| [2](#phase-2--roles-permissions--admin-auth) | Roles, Permissions & Admin Auth | Admin can log in; `isAdmin` retired |
+| [3](#phase-3--catalog-admin) | Catalog Admin | Products with variants, specs & images manageable |
+| [4](#phase-4--storefront-catalog) | Storefront Catalog | Customers can browse, filter and view products |
+| [5](#phase-5--cart) | Cart | Guest + user carts that survive login |
+| [6](#phase-6--checkout--orders-cod) | Checkout & Orders (COD) | **First real order can be placed** |
+| [7](#phase-7--payments) | Payments | Online payment gateways live |
+| [8](#phase-8--order-management-admin) | Order Management Admin | Staff can fulfil orders end to end |
+| [9](#phase-9--customer-account--engagement) | Customer Account & Engagement | Accounts, wishlist, reviews |
+| [10](#phase-10--growth--polish) | Growth & Polish | Coupons, reports, compare, SEO |
+
+**Reference**
+
+- [Appendix A — Database schema](#appendix-a--database-schema)
+- [Appendix B — Category taxonomy](#appendix-b--category-taxonomy)
+- [Appendix C — Packages](#appendix-c--packages)
+- [Appendix D — Cross-cutting concerns](#appendix-d--cross-cutting-concerns)
+- [Appendix E — Open decisions](#appendix-e--open-decisions)
 
 ---
 
@@ -29,82 +41,345 @@ means:
 - **Variants** — 16GB/512GB vs 32GB/1TB, 41mm vs 45mm case, strap colour
 - **Heavy spec data** — CPU, GPU, screen, battery, movement type, water resistance
 
-Everything below assumes variants and specs get modelled properly first.
+Everything below assumes variants and specs get modelled properly in Phase 1.
+
+> ⚠️ **Settle [Appendix E](#appendix-e--open-decisions) before starting Phase 1.** Market,
+> language and variant decisions all change the schema you are about to write.
 
 ---
 
-## 0. Blockers to fix before anything new
+# Phase 1 — Cleanup & Foundation
+
+> **Goal:** a clean codebase with a correct schema and working models.
+> Nothing user-facing ships in this phase.
+
+### 1.1 Checkpoint
+
+```bash
+git add -A && git commit -m "checkpoint before cleanup"
+```
+
+### 1.2 Fix the blockers
 
 | Issue | File |
 |---|---|
 | Admin login/logout point to wrong controller → 500 | `routes/web.php:44-45` |
 | `route('home')` doesn't exist → exception on access denial | `app/Http/Middleware/AdminMiddleware.php:20` |
-| `cart_items.product_id` commented out | `database/migrations/2024_10_26_152334_create_cart_items_table.php:20` |
-| `order_items.product_id` commented out | `database/migrations/2024_10_26_152419_create_order_items_table.php:19` |
+| `cart_items.product_id` commented out | `2024_10_26_152334_create_cart_items_table.php:20` |
+| `order_items.product_id` commented out | `2024_10_26_152419_create_order_items_table.php:19` |
 | `Product::cartItem()` uses key `cartItem_id` (should be `product_id`) | `app/Models/Product.php:14` |
 | `SoftDeletes` trait missing despite `softDeletes()` column | `app/Models/Product.php` |
-| `products` table mixes `created_by` with `update_by` / `delete_by` | products migration |
+| `products` mixes `created_by` with `update_by` / `delete_by` | products migration |
 | `->nullable()` chained after `->on()` — no effect | `user_addresses` migration:26 |
 
-> **Recommendation:** since the project is pre-launch, **rewrite the 2024 migrations in place**
-> rather than stacking `ALTER` migrations. Cleaner than carrying the mistakes forward.
-
----
-
-## 0.1 Cleanup — delete, rewrite, keep
+### 1.3 Delete
 
 **Verdict: clean now.** There are **8 stub controllers × 7 empty methods = 56 methods with zero
-logic**. You would be deleting empty shells, not working code. This gets expensive later; right
-now it costs nothing.
-
-Clean *selectively* — the Breeze auth scaffold and the 824 lines of Flowbite admin chrome are
-genuinely worth keeping.
-
-> **Commit first**, so everything is recoverable:
-> ```bash
-> git add -A && git commit -m "checkpoint before cleanup"
-> ```
-
-### 🗑️ Delete
+logic**. You are deleting empty shells, not working code. This gets expensive later; right now it
+costs nothing.
 
 | What | Why |
 |---|---|
-| 8 stub controllers — `Brand`, `CartItem`, `Category`, `Order`, `OrderItem`, `Payment`, `Product`, `ProductImage`, `UserAddress` | All empty, and all in the **flat namespace**. The roadmap needs `Admin\*` and `Shop\*` — keeping these leaves wrong-namespace duplicates to work around. Regenerate later with `php artisan make:controller Admin/ProductController --resource --model=Product` |
+| 8 stub controllers — `Brand`, `CartItem`, `Category`, `Order`, `OrderItem`, `Payment`, `Product`, `ProductImage`, `UserAddress` | All empty, and all in the **flat namespace**. You need `Admin\*` and `Shop\*` — keeping these leaves wrong-namespace duplicates to work around. Regenerate later with `php artisan make:controller Admin/ProductController --resource --model=Product` |
 | `resources/views/welcome.blade.php` | Dead. Inertia serves `app.blade.php`, and `/` renders the Inertia `Welcome` page |
-| `.erd.json` | Empty ERD — `tableIds: []`, zero tables. Serves nothing |
+| `.erd.json` | Empty ERD — `tableIds: []`, zero tables |
 | `resources/js/Pages/Admin/Components/Footer.vue` | 0 bytes |
 
-### ♻️ Rewrite
+### 1.4 Rewrite
 
 | What | Change |
 |---|---|
-| The 9 domain migrations | Rewrite in place with the full schema in §1 — pre-launch, no data to preserve |
-| `Admin/AdminAuthController` + `Admin/AdminController` | Merge into one; fix the route → method mismatch |
-| `app/Http/Middleware/redirectAdmin.php` | Rename to `RedirectIfAdmin`. It *works* (Kernel imports it correctly), but a lowercase class name breaks PSR-1 and trips static analysis |
-| `app/Models/Product.php`, `app/Models/CartItem.php` | Fix the broken relations; add `$fillable` / `$casts` |
-| `app/Models/User.php` | `isAdmin` disappears entirely once you move to `spatie/laravel-permission` |
+| The 9 domain migrations | Rewrite **in place** with [Appendix A](#appendix-a--database-schema) — pre-launch, no data to preserve. Cleaner than stacking `ALTER` migrations |
+| `app/Http/Middleware/redirectAdmin.php` | Rename to `RedirectIfAdmin`. It *works*, but a lowercase class name breaks PSR-1 and trips static analysis |
+| `app/Models/Product.php`, `CartItem.php` | Fix broken relations; add `$fillable` / `$casts` |
 
-### ✅ Keep as-is
+### 1.5 Keep as-is
 
-- **All Breeze auth** — controllers, form requests, `Pages/Auth/*.vue`, `Layouts/`, `Components/`.
-  Solid, and reused for customer accounts
+- **All Breeze auth** — controllers, form requests, `Pages/Auth/*.vue`, `Layouts/`, `Components/`
 - **`Sidebar.vue` + `Navbar.vue`** — 824 lines of working Flowbite markup. Keep it; just swap
-  `href="#"` for Ziggy `route()` calls
-- **`HandleInertiaRequests`** — extend it to share cart count, auth user, and store settings
+  `href="#"` for Ziggy `route()` calls in Phase 3
+- **`HandleInertiaRequests`** — extend it later to share cart count, auth user, store settings
 - Vite / Tailwind / PostCSS config
-- `Welcome.vue` and `Dashboard.vue` — they become the storefront home and the customer account
-  dashboard
+- `Welcome.vue` and `Dashboard.vue` — become the storefront home and account dashboard
 
-### Already fine — no action needed
+> **Already fine, no action:** `.env` is correctly gitignored and untracked ✓ ·
+> `Kernel.php:5` properly imports the `redirectAdmin` middleware ✓
 
-- `.env` is correctly gitignored and untracked ✓
-- `Kernel.php:5` properly imports the `redirectAdmin` middleware ✓
+### 1.6 Build the model layer
+
+- All models get `$fillable`, `$casts`, relationships — currently every one is empty
+- Slug generation (`spatie/laravel-sluggable` or a `boot()` hook)
+- Scopes: `published()`, `inStock()`, `featured()`, `filter()`
+- Accessors: `final_price`, `discount_percent`, `primary_image_url`, `is_low_stock`
+
+### 1.7 Seeders & factories
+
+Realistic catalog data you can develop against — brands, a category tree, ~50 products with
+variants and specs. Everything after this depends on having data to look at.
+
+**✅ Done when:** `migrate:fresh --seed` produces a full catalog, and every model relationship
+resolves in `tinker`.
 
 ---
 
-## 1. Database — tables to add or change
+# Phase 2 — Roles, Permissions & Admin Auth
 
-### 1.1 Category taxonomy — and four concepts not to confuse
+> **Goal:** admin can actually log in. Right now the route points at a missing method.
+
+- [ ] Install `spatie/laravel-permission`
+- [ ] Roles: `super-admin`, `manager`, `staff`, `customer`
+- [ ] **Drop `users.isAdmin`** — replaced by roles
+- [ ] Merge `AdminAuthController` + `AdminController` into one; fix route → method bindings
+- [ ] Update `AdminMiddleware` to check role, not the boolean; fix the `route('home')` redirect
+- [ ] `users` table: add `phone`, `avatar`, `last_login_at`, `is_active`
+- [ ] Policies scaffolded: `ProductPolicy`, `OrderPolicy`, `ReviewPolicy`, `CouponPolicy`
+- [ ] Rate-limit the admin login route
+- [ ] Install `spatie/laravel-activitylog` for the admin audit trail
+
+**✅ Done when:** a seeded admin logs in and reaches the dashboard; a customer hitting `/admin`
+is redirected, not 500'd.
+
+---
+
+# Phase 3 — Catalog Admin
+
+> **Goal:** you can manage the full product catalog. The biggest phase — budget accordingly.
+
+Wire the existing Flowbite sidebar links to real routes as you go.
+
+- [ ] **Brands** — CRUD, logo upload, active toggle, sort order
+- [ ] **Categories** — nested tree CRUD with drag-reorder ([Appendix B](#appendix-b--category-taxonomy))
+- [ ] **Attributes & values** — RAM, Storage, Colour, Case Size, Strap Material
+- [ ] **Tags** — CRUD
+- [ ] **Products** — the centrepiece:
+  - [ ] List: search, filter by category/brand/status, bulk actions
+  - [ ] Rich text description (TipTap)
+  - [ ] **Variant matrix generator** — pick attributes, auto-generate SKU rows with price + stock
+  - [ ] Drag-drop multi-image upload with reorder + primary flag
+  - [ ] Spec-sheet builder (grouped key/value rows)
+  - [ ] SEO fields, warranty months, condition, release year
+  - [ ] Duplicate product
+- [ ] **Media** — `spatie/laravel-medialibrary` + `intervention/image`, thumbnails, WebP
+- [ ] **Inventory** — stock levels, low-stock view, bulk adjust, `inventory_movements` history
+
+**✅ Done when:** you can create a gaming laptop with 4 RAM/storage variants, 8 images, a
+20-row spec sheet, and see correct per-variant stock.
+
+---
+
+# Phase 4 — Storefront Catalog
+
+> **Goal:** customers can browse and evaluate products. No cart yet.
+
+- [ ] Storefront layout — header, nav from category tree, footer, mobile menu
+- [ ] **Home** — hero/banner slider, featured categories, deals, new arrivals, best sellers, brand strip
+- [ ] **Category / listing** — **faceted filters are essential here**: brand, price range, CPU,
+      RAM, storage, screen size, case size, movement type, in-stock, rating. Plus sort,
+      pagination, grid/list toggle
+- [ ] **Product detail** — image gallery with zoom, variant picker (disable unavailable combos),
+      price + stock, **spec table**, warranty info, related products
+- [ ] **Search** — MySQL FULLTEXT to start, autocomplete dropdown, results page, no-results suggestions
+- [ ] Recently viewed
+- [ ] **Static pages** — about, contact, FAQ, warranty, returns, shipping, privacy, terms
+
+**✅ Done when:** a customer can filter to "Gaming Laptops, Asus, 16GB RAM, under $1500" and
+open a product with a working variant picker.
+
+---
+
+# Phase 5 — Cart
+
+> **Goal:** guest and logged-in carts that behave correctly across login.
+
+- [ ] `cart_items`: add `product_variant_id`, `session_id` (guest), `price_at_add`; `user_id` nullable
+- [ ] **`CartService`** — add / update / remove, and **merge guest cart into user cart on login**
+      (the part that's easy to get wrong)
+- [ ] Cart page — quantity update, totals summary, stock re-validation
+- [ ] Mini-cart dropdown in the header
+- [ ] Cart count shared via `HandleInertiaRequests`
+
+**✅ Done when:** add to cart as a guest, log in, and the items are still there — with no duplicates.
+
+---
+
+# Phase 6 — Checkout & Orders (COD)
+
+> **Goal:** **the first real order can be placed.** Cash on Delivery only — no gateway
+> integration needed, which unblocks the entire flow.
+
+- [ ] `user_addresses`: add `receiver_name`, `phone`, `is_default_shipping`, `is_default_billing`
+- [ ] `shipping_methods` + `shipping_zones` — Phnom Penh vs provinces, flat or weight-based
+- [ ] `tax_rates`
+- [ ] **Checkout flow** — guest + logged-in, address form, shipping method, payment method
+      (COD), order review
+- [ ] **`CheckoutService`** — validate stock → reserve → create order → confirm
+- [ ] **`PricingService`** — variant price, tax, shipping, totals
+- [ ] **`InventoryService`** — decrement on order, restock on cancel
+- [ ] `OrderNumberGenerator` — `ORD-20260816-0001`
+- [ ] **Snapshot** shipping/billing address as JSON on the order, and product name/SKU/price on
+      order items — see [Appendix A](#a4-cart--checkout) for why
+- [ ] `order_status_histories`
+- [ ] Order confirmation page + order tracking by number (guests included)
+
+**✅ Done when:** a guest completes checkout, stock decrements, and the order appears with a
+correct total.
+
+---
+
+# Phase 7 — Payments
+
+> **Goal:** take money online.
+
+- [ ] Abstract a `PaymentGateway` interface so new gateways never touch checkout code
+- [ ] **Cambodia:** ABA PayWay, Bakong KHQR, Wing
+- [ ] **International:** Stripe / PayPal (only if selling abroad — see [Appendix E](#appendix-e--open-decisions))
+- [ ] `payments`: add `transaction_id`, `gateway`, `gateway_payload` JSON, `paid_at`, `refunded_at`
+- [ ] Webhook handling + signature verification
+- [ ] Payment status transitions, failed-payment retry
+- [ ] `refunds` / RMA table — expect returns with electronics
+
+**✅ Done when:** a real (sandbox) payment completes and the webhook flips the order to paid.
+
+---
+
+# Phase 8 — Order Management Admin
+
+> **Goal:** staff can fulfil orders end to end.
+
+- [ ] **Orders admin** — list with status/date/payment filters; detail page (items, customer,
+      addresses, timeline, payment); status transitions; refund
+- [ ] **Invoices + packing slips** — `barryvdh/laravel-dompdf`
+- [ ] **Customers admin** — list, detail with order history and lifetime value
+- [ ] **Emails** — order confirmation, shipped, delivered, cancelled, low-stock admin alert
+- [ ] Events → listeners → jobs: `OrderPlaced`, `OrderStatusChanged`, `PaymentSucceeded`,
+      `LowStockDetected`
+- [ ] ⚠️ **Switch `QUEUE_CONNECTION` off `sync`** — right now every email blocks the request
+- [ ] Configure real SMTP (`MAIL_HOST=mailpit` is dev-only)
+- [ ] **Dashboard overview** — replace the placeholder boxes: revenue today/week/month, orders by
+      status, low-stock alerts, top products, recent orders, sales chart
+
+**✅ Done when:** an order can go placed → paid → shipped → delivered, with the customer emailed
+at each step and a printable invoice.
+
+---
+
+# Phase 9 — Customer Account & Engagement
+
+- [ ] **Account** — dashboard, order list + detail, addresses CRUD, profile/password
+- [ ] **Wishlist**
+- [ ] **Reviews** — submit (verified-purchase flag from order history), review images
+- [ ] **Review moderation admin** — approve/reject queue, admin reply
+- [ ] Rating aggregation back onto `products.rating_avg` / `rating_count`
+
+**✅ Done when:** a customer who received an order can review it, and the rating shows on the
+product page after approval.
+
+---
+
+# Phase 10 — Growth & Polish
+
+- [ ] **Coupons** — CRUD, usage limits, per-user limits, scoped to category/brand/product
+- [ ] **Reports** — sales by period / category / brand, best sellers, low performers, CSV export
+- [ ] **Compare** — side-by-side spec comparison. High value for computers; a real differentiator
+- [ ] **Search upgrade** — `laravel/scout` + Meilisearch once the catalog outgrows FULLTEXT
+- [ ] **SEO** — slug routes, `sitemap.xml`, meta tags, Open Graph, JSON-LD Product schema
+      (gets rich results with price/rating)
+- [ ] **Performance** — eager-load to kill N+1, cache category tree + settings,
+      `CACHE_DRIVER=redis`, index `slug`/`sku`/`status`/FK columns
+- [ ] **Settings admin** — store info, shipping, tax, gateways, currency, email templates
+- [ ] `laravel/horizon` for queue monitoring
+- [ ] Flash sales / campaign pricing
+- [ ] Feature tests: cart, checkout, order creation, stock decrement
+- [ ] `APP_DEBUG=false` in production
+
+---
+---
+
+# Appendix A — Database schema
+
+## A1. Catalog
+
+**`categories`** — add `parent_id` (self FK), `description`, `image`, `icon`, `is_active`, `sort_order`
+
+**`brands`** — add `logo`, `description`, `is_active`, `sort_order`
+
+**`products`** — add `sku`, `short_description`, `compare_at_price` (strike-through), `cost_price`,
+**`warranty_months`**, `release_year`, `weight`, `length`/`width`/`height`, `is_featured`,
+`condition` (new/refurbished/used), `meta_title`, `meta_description`, `views_count`,
+`rating_avg`, `rating_count`, `status` enum
+
+**`product_variants`** — 🆕 **the critical one**
+`product_id`, `sku`, `price`, `compare_at_price`, `stock_quantity`, `image_id`, `is_default`,
+`low_stock_threshold`, `allow_backorder`
+
+**`attributes`** + **`attribute_values`** — 🆕 RAM, Storage, Colour, Case Size, Strap Material
+
+**`product_variant_attribute_values`** — 🆕 pivot linking a variant to its option combination
+
+**`product_specifications`** — 🆕 `product_id`, `group` (Processor/Display/Battery), `key`,
+`value`, `sort_order`. This is your spec sheet.
+
+**`product_images`** — add `sort_order`, `is_primary`, `alt_text`, `variant_id`
+
+**`product_tags`** + pivot — 🆕
+
+**`reviews`** — 🆕 `user_id`, `product_id`, `order_id`, `rating`, `title`, `body`,
+`is_verified_purchase`, `status`, `admin_reply`
+
+**`review_images`** — 🆕 *(optional)* · **`wishlists`** — 🆕 · **`product_views`** — 🆕 *(optional)*
+
+## A2. Inventory
+
+**`inventory_movements`** — 🆕 `in`/`out`/`adjustment`/`return`, quantity, reason, reference
+
+**`product_serials`** — 🆕 *(optional)* serial / IMEI per unit — useful for warranty claims
+
+## A3. Promotions & pricing
+
+**`coupons`** — 🆕 `code`, `type` (fixed/percent), `value`, `min_order`, `usage_limit`,
+`per_user_limit`, `starts_at`, `expires_at`, `applies_to`
+
+**`coupon_usages`** — 🆕 · **`flash_sales`** — 🆕 *(optional)* · **`tax_rates`** — 🆕
+
+**`currencies`** + exchange rates — 🆕 *(if selling in USD **and** KHR)*
+
+## A4. Cart & checkout
+
+**`cart_items`** — add `product_variant_id`, `session_id` (guest carts), `price_at_add`;
+`user_id` nullable
+
+**`orders`** — add `order_number`, `subtotal`, `discount_total`, `tax_total`, `shipping_fee`,
+`grand_total`, `currency`, `payment_status`, `fulfillment_status`, `coupon_id`,
+**`shipping_address` as JSON snapshot**, `billing_address` JSON, `customer_note`, `admin_note`,
+`placed_at`, `shipped_at`, `delivered_at`, `cancelled_at`
+
+> ⚠️ **Snapshot the address as JSON.** If you only FK to `user_addresses` and the customer edits
+> that address later, your order history silently rewrites itself.
+
+**`order_items`** — add `product_variant_id`, plus **snapshots**: `product_name`, `sku`,
+`variant_label`, `unit_price`, `quantity`, `subtotal`. Same reasoning.
+
+**`order_status_histories`** — 🆕 who changed status, when, note
+
+**`shipping_methods`** + **`shipping_zones`** — 🆕
+
+**`payments`** — add `transaction_id`, `gateway`, `gateway_payload` JSON, `paid_at`, `refunded_at`
+
+**`refunds`** / RMA — 🆕
+
+## A5. Users & access
+
+- Replace `users.isAdmin` with **roles & permissions** (`spatie/laravel-permission`)
+- **`user_addresses`** — add `receiver_name`, `phone`, `is_default_shipping`,
+  `is_default_billing`; fix the broken `->nullable()` chain
+- **`users`** — add `phone`, `avatar`, `last_login_at`, `is_active`
+- **`activity_log`** (spatie) — 🆕 · **`settings`** — 🆕
+
+---
+
+# Appendix B — Category taxonomy
+
+## Four concepts not to confuse
 
 Four different things, four different tables. Mixing them up is the most common modelling mistake:
 
@@ -118,8 +393,11 @@ Four different things, four different tables. Mixing them up is the most common 
 > **Release year is a specification, not a category.** Add `release_year` as a column on
 > `products` if you want to filter/sort by it (common for computers — "2024 model"), otherwise
 > store it as a `product_specifications` row.
+>
+> It can't be a category because a product belongs to **one** place in the tree — a 2024 gaming
+> laptop would have to live in both "Gaming Laptops" and "2024" at once.
 
-#### Proposed category tree
+## Proposed tree
 
 Nested via `categories.parent_id`:
 
@@ -168,12 +446,11 @@ Gaming ─── Consoles · Controllers
 Software & Licenses
 ```
 
-Keep the tree **2–3 levels deep at most**. Deeper trees hurt navigation and make filtering
-queries slower.
+Keep the tree **2–3 levels deep at most**. Deeper trees hurt navigation and slow filtering queries.
 
-#### Attributes per category
+## Attributes per category
 
-Attributes are what generate variants, so they differ by category:
+Attributes generate variants, so they differ by category:
 
 | Category | Attributes (make SKUs) | Specifications (descriptive only) |
 |---|---|---|
@@ -185,272 +462,83 @@ Attributes are what generate variants, so they differ by category:
 | Smartwatches | Case size, Band, Colour | OS compat, Sensors, Battery, GPS, Display type |
 | Storage | Capacity, Interface | Read/write speed, Endurance, Form factor |
 
-### 1.2 Catalog
-
-**`categories`** — add
-`parent_id` (self FK, for Computers → Laptops → Gaming Laptops), `description`, `image`, `icon`,
-`is_active`, `sort_order`
-
-**`brands`** — add
-`logo`, `description`, `is_active`, `sort_order`
-*(Asus, Dell, Apple, Lenovo, Casio, Seiko, Citizen…)*
-
-**`products`** — add
-`sku`, `short_description`, `compare_at_price` (strike-through), `cost_price`,
-**`warranty_months`** ← important for electronics, `weight`, `length` / `width` / `height`
-(shipping calc), `is_featured`, `condition` (new / refurbished / used), `meta_title`,
-`meta_description`, `views_count`, `rating_avg`, `rating_count`, `status` enum
-
-**`product_variants`** — 🆕 **the critical one**
-`product_id`, `sku`, `price`, `compare_at_price`, `stock_quantity`, `image_id`, `is_default`,
-`low_stock_threshold`, `allow_backorder`
-
-**`attributes`** + **`attribute_values`** — 🆕
-RAM, Storage, Colour, Case Size, Strap Material, Screen Size
-
-**`product_variant_attribute_values`** — 🆕
-Pivot linking a variant to its option combination
-
-**`product_specifications`** — 🆕
-`product_id`, `group` (Processor / Display / Battery), `key`, `value`, `sort_order`
-This is your spec sheet.
-
-**`product_images`** — add
-`sort_order`, `is_primary`, `alt_text`, `variant_id`
-
-**`product_tags`** + pivot — 🆕
-
-**`reviews`** — 🆕
-`user_id`, `product_id`, `order_id`, `rating`, `title`, `body`, `is_verified_purchase`,
-`status` (moderation), `admin_reply`
-
-**`review_images`** — 🆕 *(optional)*
-
-**`wishlists`** — 🆕
-
-**`product_views`** / recently-viewed — 🆕 *(optional)*
-
-### 1.3 Inventory
-
-**`inventory_movements`** — 🆕
-Audit trail: `in` / `out` / `adjustment` / `return`, quantity, reason, reference
-
-**`product_serials`** — 🆕 *(optional)*
-Serial / IMEI per unit — genuinely useful for warranty claims on computers
-
-### 1.4 Promotions & pricing
-
-**`coupons`** — 🆕
-`code`, `type` (fixed/percent), `value`, `min_order`, `usage_limit`, `per_user_limit`,
-`starts_at`, `expires_at`, `applies_to` (all/category/brand/product)
-
-**`coupon_usages`** — 🆕
-
-**`flash_sales`** / campaign pricing — 🆕 *(optional)*
-
-**`tax_rates`** — 🆕
-
-**`currencies`** + exchange rates — 🆕 *(if selling in USD **and** KHR)*
-
-### 1.5 Cart & checkout
-
-**`cart_items`** — add
-`product_variant_id`, `session_id` (guest carts), `price_at_add`; keep `user_id` nullable
-
-**`orders`** — add
-`order_number` (human-readable, e.g. `ORD-20260816-0001`), `subtotal`, `discount_total`,
-`tax_total`, `shipping_fee`, `grand_total`, `currency`, `payment_status`, `fulfillment_status`,
-`coupon_id`, **`shipping_address` as JSON snapshot**, `billing_address` JSON, `customer_note`,
-`admin_note`, `placed_at`, `shipped_at`, `delivered_at`, `cancelled_at`
-
-> ⚠️ **Snapshot the address as JSON.** If you only FK to `user_addresses` and the customer edits
-> that address later, your order history silently rewrites itself.
-
-**`order_items`** — add
-`product_variant_id`, plus **snapshots**: `product_name`, `sku`, `variant_label`, `unit_price`,
-`quantity`, `subtotal`. Same reasoning as above.
-
-**`order_status_histories`** — 🆕
-Who changed status, when, note
-
-**`shipping_methods`** + **`shipping_zones`** — 🆕
-Phnom Penh vs provinces, flat vs weight-based
-
-**`payments`** — add
-`transaction_id`, `gateway`, `gateway_payload` JSON, `paid_at`, `refunded_at`
-
-**`refunds`** / returns (RMA) — 🆕
-Expect these with electronics
-
-### 1.6 Users & access
-
-- Replace `users.isAdmin` boolean with **roles & permissions**
-  (`spatie/laravel-permission`): super-admin, manager, staff, customer
-- **`user_addresses`** — add `receiver_name`, `phone`, `is_default_shipping`,
-  `is_default_billing`; fix the broken `->nullable()` chain
-- **`users`** — add `phone`, `avatar`, `last_login_at`, `is_active`
-- **`activity_log`** (spatie) — 🆕 admin audit trail
-- **`settings`** — 🆕 store name, logo, contact, social, currency, tax mode
-
 ---
 
-## 2. Backend — application layer
-
-### Models
-
-All 10 models are currently empty. Each needs `$fillable`, `$casts`, and relationships. Plus:
-
-- Slug generation (sluggable package or a `boot()` hook)
-- Scopes: `published()`, `inStock()`, `featured()`, `filter()`
-- Accessors: `final_price`, `discount_percent`, `primary_image_url`, `is_low_stock`
-
-### Controllers
-
-All 10 are empty stubs and **none are routed**. You need two separate sets:
-
-- `App\Http\Controllers\Admin\*` — full CRUD
-- `App\Http\Controllers\Shop\*` — storefront read + cart/checkout
-
-### Form Requests
-
-One per create/update action. Currently 2 exist; roughly **25** needed.
-
-### Policies
-
-`ProductPolicy`, `OrderPolicy`, `ReviewPolicy`, `CouponPolicy`, etc.
-
-### Service / Action classes
-
-Keep controllers thin:
-
-| Class | Responsibility |
-|---|---|
-| `CartService` | Add/update/remove, **merge guest cart into user cart on login** |
-| `CheckoutService` | Validate stock → reserve → create order → payment |
-| `PricingService` | Variant price, coupon, tax, shipping |
-| `InventoryService` | Decrement on order, restock on cancel |
-| `OrderNumberGenerator` | Sequential human-readable order numbers |
-
-### Events / Listeners / Jobs
-
-`OrderPlaced`, `OrderStatusChanged`, `PaymentSucceeded`, `LowStockDetected`
-→ send mail, decrement stock, notify admin
-
-> ⚠️ **Switch `QUEUE_CONNECTION` off `sync`** in `.env`. Right now every email blocks the request.
-
-### API Resources
-
-Needed now for shaping Inertia payloads, and later for a mobile app.
-
----
-
-## 3. Admin dashboard — pages to build
-
-The current `Admin/Dashboard.vue` is placeholder dashed boxes, and every sidebar link is `href="#"`.
-
-- [ ] **Overview** — revenue today/week/month, orders by status, low-stock alerts, top products, recent orders, sales chart
-- [ ] **Products** — list (search / filter / bulk actions); create/edit with rich text description, **variant matrix generator**, drag-drop multi-image upload with reorder, spec-sheet builder, SEO fields, duplicate product
-- [ ] **Categories** — nested tree with drag-reorder
-- [ ] **Brands**
-- [ ] **Attributes & values**
-- [ ] **Tags**
-- [ ] **Inventory** — stock levels, low-stock view, bulk adjust, movement history
-- [ ] **Orders** — list with status/date/payment filters; detail page (items, customer, addresses, timeline, payment); status transitions; **printable invoice + packing slip**; refund
-- [ ] **Customers** — list, detail with order history and lifetime value
-- [ ] **Coupons** — CRUD + usage stats
-- [ ] **Reviews** — moderation queue, approve/reject, reply
-- [ ] **Reports** — sales by period / category / brand, best sellers, low performers, CSV export
-- [ ] **Settings** — store info, shipping methods & zones, tax, payment gateways, currency, email templates
-- [ ] **Staff & roles** — user management, role assignment
-- [ ] **Activity log**
-
----
-
-## 4. Storefront — pages to build
-
-Currently **zero storefront** exists.
-
-- [ ] **Home** — hero/banner slider, featured categories, deals, new arrivals, best sellers, brand strip
-- [ ] **Category / listing** — **faceted filters are essential here**: brand, price range, CPU, RAM, storage, screen size, case size, movement type, in-stock, rating. Plus sort, pagination, grid/list toggle
-- [ ] **Search** — autocomplete dropdown, results page, "no results" suggestions
-- [ ] **Product detail** — image gallery with zoom, variant picker (disable unavailable combos), price + stock, **spec table**, warranty info, add to cart / buy now, reviews, related & "frequently bought with"
-- [ ] **Compare** — side-by-side spec comparison. High value for computers; a real differentiator in this category
-- [ ] **Cart** — quantity update, coupon field, totals summary, stock re-validation
-- [ ] **Checkout** — guest + logged-in, address form, shipping method, payment method, order review
-- [ ] **Order confirmation** + **order tracking** (by number, guests included)
-- [ ] **Account** — dashboard, orders + detail, addresses, wishlist, my reviews, profile/password
-- [ ] **Static pages** — about, contact, FAQ, warranty policy, return policy, shipping policy, privacy, terms
-
----
-
-## 5. Cross-cutting concerns
-
-| Concern | Recommendation |
-|---|---|
-| **Images** | `spatie/laravel-medialibrary` + `intervention/image` — thumbnails, WebP conversion. Product photos are your heaviest asset |
-| **Search** | Start with MySQL FULLTEXT; move to `laravel/scout` + Meilisearch as the catalog grows |
-| **Payments** | Cambodia: **ABA PayWay**, **Bakong KHQR**, Wing, plus **Cash on Delivery**. Stripe/PayPal if selling abroad. Abstract behind a `PaymentGateway` interface so new gateways don't touch checkout |
-| **Currency** | USD + KHR if selling locally — **decide early**, it touches every price column |
-| **Language** | EN + KM if local — **decide early**, it changes column design (JSON translatable vs separate tables) |
-| **Email** | Order confirmation, shipped, delivered, cancelled, password reset, low-stock admin alert. `MAIL_HOST=mailpit` is dev-only — configure real SMTP |
-| **SEO** | Slug routes, `sitemap.xml`, meta tags, Open Graph, JSON-LD Product schema (gets rich results with price/rating) |
-| **Security** | Rate-limit login & checkout, `APP_DEBUG=false` in prod, validate all uploads, authorization on every admin route |
-| **Performance** | Eager-load to kill N+1, cache category tree and settings, `CACHE_DRIVER=redis`, index `slug`/`sku`/`status`/FK columns, paginate everywhere |
-| **Testing** | Feature tests at minimum for cart, checkout, order creation, stock decrement |
-
----
-
-## 6. Packages worth adding
+# Appendix C — Packages
 
 ```bash
+# Phase 1–3
 composer require \
-  spatie/laravel-permission \    # roles & permissions
-  spatie/laravel-medialibrary \  # product images
-  spatie/laravel-activitylog \   # admin audit trail
-  spatie/laravel-sluggable \     # slugs
-  intervention/image \           # thumbnails / WebP
-  barryvdh/laravel-dompdf \      # invoices & packing slips
-  maatwebsite/excel              # product import / report export
+  spatie/laravel-permission \    # roles & permissions        (Phase 2)
+  spatie/laravel-activitylog \   # admin audit trail          (Phase 2)
+  spatie/laravel-sluggable \     # slugs                      (Phase 1)
+  spatie/laravel-medialibrary \  # product images             (Phase 3)
+  intervention/image             # thumbnails / WebP          (Phase 3)
 
-# later
+# Phase 8+
+composer require \
+  barryvdh/laravel-dompdf \      # invoices & packing slips   (Phase 8)
+  maatwebsite/excel              # import / report export     (Phase 10)
+
+# Phase 10
 composer require laravel/scout laravel/horizon
 ```
 
-**Frontend:** a rich text editor (TipTap), a chart library for the dashboard,
-and `vuedraggable` for image/category reordering.
+**Frontend:** TipTap (rich text editor), a chart library for the dashboard,
+`vuedraggable` (image + category reordering).
 
 ---
 
-## 7. Suggested build order
+# Appendix D — Cross-cutting concerns
 
-| # | Phase | Notes |
+| Concern | Recommendation | Phase |
 |---|---|---|
-| 1 | **Fix blockers** + rewrite migrations with the full schema | Foundation |
-| 2 | **Roles & permissions** (replace `isAdmin`), working admin login | |
-| 3 | **Catalog admin** — brands → categories → attributes → products with variants + images | Biggest chunk |
-| 4 | **Storefront catalog** — home, listing with filters, product detail | |
-| 5 | **Cart** — guest + user, with merge on login | |
-| 6 | **Checkout + orders** — COD first | Needs no gateway; unblocks the whole flow |
-| 7 | **Payment gateway** integration | |
-| 8 | **Order management admin** + emails + invoices | |
-| 9 | **Customer account**, reviews, wishlist | |
-| 10 | **Reports, coupons, compare, search polish, SEO** | |
+| **Images** | `spatie/laravel-medialibrary` + `intervention/image` — thumbnails, WebP. Product photos are your heaviest asset | 3 |
+| **Search** | MySQL FULLTEXT first; `laravel/scout` + Meilisearch as the catalog grows | 4 → 10 |
+| **Payments** | Cambodia: ABA PayWay, Bakong KHQR, Wing, plus COD. Stripe/PayPal if selling abroad. Abstract behind a `PaymentGateway` interface | 6–7 |
+| **Currency** | USD + KHR if selling locally — **decide early**, it touches every price column | 1 |
+| **Language** | EN + KM if local — **decide early**, it changes column design (JSON translatable vs separate tables) | 1 |
+| **Email** | Order confirmation, shipped, delivered, cancelled, password reset, low-stock alert. Configure real SMTP | 8 |
+| **Queues** | Switch `QUEUE_CONNECTION` off `sync` — every email currently blocks the request | 8 |
+| **SEO** | Slug routes, `sitemap.xml`, meta tags, Open Graph, JSON-LD Product schema | 10 |
+| **Security** | Rate-limit login & checkout, `APP_DEBUG=false` in prod, validate all uploads, authorization on every admin route | 2, 10 |
+| **Performance** | Eager-load to kill N+1, cache category tree + settings, `CACHE_DRIVER=redis`, index `slug`/`sku`/`status`/FKs, paginate everywhere | 10 |
+| **Testing** | Feature tests for cart, checkout, order creation, stock decrement | 5–6, 10 |
+
+## Application layer conventions
+
+- **Form Requests** — one per create/update action. Currently 2 exist; roughly **25** needed
+- **Policies** — `ProductPolicy`, `OrderPolicy`, `ReviewPolicy`, `CouponPolicy`
+- **API Resources** — for shaping Inertia payloads now, and a mobile app later
+- **Service classes** — keep controllers thin:
+
+| Class | Responsibility | Phase |
+|---|---|---|
+| `CartService` | Add/update/remove, **merge guest cart into user cart on login** | 5 |
+| `CheckoutService` | Validate stock → reserve → create order → payment | 6 |
+| `PricingService` | Variant price, coupon, tax, shipping | 6 |
+| `InventoryService` | Decrement on order, restock on cancel | 6 |
+| `OrderNumberGenerator` | Sequential human-readable order numbers | 6 |
 
 ---
 
-## 8. Open decisions
+# Appendix E — Open decisions
 
-Three questions that change the schema — worth settling before step 1:
+Three questions that change the schema. **Settle these before Phase 1.**
 
-1. **Market** — Cambodia only, or international?
-   *Drives currency, payment gateways, shipping model.*
+### 1. Market — Cambodia only, or international?
 
-2. **Language** — English only, or EN + KM?
-   *Retrofitting translations later is painful.*
+Drives currency, payment gateways, shipping model. Affects Phases 1, 6, 7.
 
-3. **Variants** — confirmed needed?
-   *If every product is a single fixed SKU you can skip `product_variants` entirely and save
-   significant complexity — but for laptops and watches, assume you need them.*
+### 2. Language — English only, or EN + KM?
+
+Retrofitting translations later is painful — it changes whether text columns are plain strings
+or JSON translatable. Affects Phase 1.
+
+### 3. Variants — confirmed needed?
+
+If every product is a single fixed SKU you can skip `product_variants` entirely and save
+significant complexity. But for laptops and watches, assume you need them. Affects Phases 1, 3, 5, 6.
 
 ---
 
