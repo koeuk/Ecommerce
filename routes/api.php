@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\V1\AccountController;
 use App\Http\Controllers\Api\V1\AddressController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\BrandController;
@@ -71,6 +72,15 @@ Route::prefix('v1')->middleware('api.locale')->group(function () {
         Route::get('me', [AuthController::class, 'me']);
         Route::post('logout', [AuthController::class, 'logout']);
         Route::post('logout-all', [AuthController::class, 'logoutAll']);
+
+        // Account — order history, profile, wishlist
+        Route::get('account/orders', [AccountController::class, 'orders']);
+        Route::put('account/profile', [AccountController::class, 'updateProfile']);
+        Route::put('account/password', [AccountController::class, 'updatePassword']);
+
+        Route::get('wishlist', [AccountController::class, 'wishlist']);
+        Route::post('wishlist', [AccountController::class, 'addToWishlist']);
+        Route::delete('wishlist/{product}', [AccountController::class, 'removeFromWishlist']);
 
         // Address book
         Route::get('addresses', [AddressController::class, 'index']);

@@ -12,6 +12,7 @@ use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\User;
+use App\Services\InventoryService;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
@@ -172,7 +173,7 @@ class OrderManagementTest extends TestCase
 
         // Force a second restock attempt directly — the guard, not the state
         // machine, is what has to hold here.
-        app(\App\Services\InventoryService::class)->restockForOrder($order->fresh('items'));
+        app(InventoryService::class)->restockForOrder($order->fresh('items'));
 
         $this->assertSame(10, $variant->fresh()->stock_quantity);
         $this->assertSame(1, $variant->inventoryMovements()->where('type', 'return')->count());
