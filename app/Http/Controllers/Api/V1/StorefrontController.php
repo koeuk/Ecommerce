@@ -9,6 +9,7 @@ use App\Models\Brand;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\Setting;
+use App\Payments\GatewayRegistry;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -76,7 +77,12 @@ class StorefrontController extends Controller
      */
     public function settings(): JsonResponse
     {
-        return response()->json(['data' => Setting::all_cached()]);
+        return response()->json([
+            'data' => Setting::all_cached() + [
+                // Only gateways that are actually configured.
+                'payment_methods' => app(GatewayRegistry::class)->options(),
+            ],
+        ]);
     }
 
     /**

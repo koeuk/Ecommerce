@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Enums\Role;
+use App\Payments\GatewayRegistry;
 use App\Services\ImageService;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
@@ -17,6 +18,11 @@ class AppServiceProvider extends ServiceProvider
         // ImageService wraps an Intervention manager that needs an explicit
         // driver, so it cannot be auto-resolved.
         $this->app->singleton(ImageService::class, fn () => ImageService::make());
+
+        $this->app->singleton(
+            GatewayRegistry::class,
+            fn () => new GatewayRegistry(config('payments.gateways', [])),
+        );
     }
 
     public function boot(): void

@@ -2,8 +2,8 @@
 
 **Project:** Computer, electronics accessories & watch store — **personal, single shop**
 **Stack:** Laravel 12.66 · PHP 8.4 · Inertia 2 · Vue 3 · Tailwind + Flowbite · Vite · MySQL
-**Status:** Phases 1–6, 8, 9 complete · 41 tables · 30 models · **229 tests passing**
-**Milestone reached:** an order can be placed, fulfilled and invoiced end to end (COD).
+**Status:** All 10 phases complete · 41 tables · 30 models · **244 tests passing**
+**Ready to launch on COD** — see [Deploy checklist](#deploy-checklist) for the config that must change first.
 
 > ### 🔀 Architecture: split frontend
 >
@@ -41,10 +41,10 @@
 | ✅ | [4](#-phase-4--storefront-catalog-api) | Storefront Catalog API | Customers can browse, filter and view products |
 | ✅ | [5](#-phase-5--cart-api) | Cart API | Guest + user carts that survive login |
 | ✅ | [6](#-phase-6--checkout--orders-cod) | Checkout & Orders (COD) | ✅ **First real order can be placed** |
-| ⬜ | [7](#-phase-7--payments) | Payments *(optional)* | One gateway live — COD-only is viable |
+| 🔄 | [7](#-phase-7--payments) | Payments *(optional)* | Abstraction built; a real gateway needs bank credentials |
 | ✅ | [8](#-phase-8--order-management-admin) | Order Management Admin | You can fulfil orders end to end |
 | ✅ | [9](#-phase-9--customer-account-api) | Customer Account API | Order history, addresses, wishlist |
-| ⬜ | [10](#-phase-10--polish) | Polish | SEO, performance, security, backups |
+| ✅ | [10](#-phase-10--polish) | Polish | SEO, performance, security, backups |
 
 **Legend:** ✅ done · 🔄 partial · ⬜ not started · `[~]` skipped deliberately
 
@@ -57,6 +57,7 @@ Each unbuilt phase lists **Core** (build it) and **Skip for now** (with reasons)
 - [Appendix C — Packages](#appendix-c--packages)
 - [Appendix D — Cross-cutting concerns](#appendix-d--cross-cutting-concerns)
 - [Appendix E — Decisions (settled)](#appendix-e--decisions-settled)
+- [**Deploy checklist**](#deploy-checklist) — the config that must change before launch
 - [**Where things actually stand**](#where-things-actually-stand) — the carried-forward gaps, ranked
 
 ---
@@ -410,16 +411,22 @@ correct total.
 
 ---
 
-# ⬜ Phase 7 — Payments
+# 🔄 Phase 7 — Payments
 
-### ⬜ NOT STARTED — *optional · COD-only is a viable launch*
+### 🔨 ABSTRACTION BUILT — *a live gateway needs your bank's credentials*
 
 > **Goal:** take money online. **Optional** — plenty of Cambodian shops run COD-only indefinitely.
 
-- [ ] Abstract a `PaymentGateway` interface so new gateways never touch checkout code
-- [ ] **Start with one gateway.** ABA PayWay or Bakong KHQR — whichever your bank already supports
-- [ ] Webhook handling + signature verification
-- [ ] Payment status transitions
+- [x] **`PaymentGateway` interface** + `GatewayRegistry` + `config/payments.php`. Checkout never
+      names a gateway, so adding one is a class plus a config line
+- [x] **`CodGateway`** — records a pending payment row so every order has a payment history;
+      the admin marks it paid when the courier hands the cash over
+- [x] Only gateways reporting `isAvailable()` are advertised, so a half-configured provider
+      cannot reach the checkout screen
+- [ ] ⚠️ **A real gateway.** ABA PayWay or Bakong KHQR — this needs *your* merchant credentials
+      and their API docs, so it is the one thing here that cannot be written blind
+- [ ] Webhook handling + **signature verification** — the interface documents this as mandatory;
+      an unverified webhook lets anyone mark any order paid
 
 ### Skip for now
 
@@ -496,37 +503,68 @@ emailed at each step and a printable invoice.
 
 ---
 
-# ⬜ Phase 10 — Polish
+# ✅ Phase 10 — Polish
 
-### ⬜ NOT STARTED — *absorbs the deferred image and search work*
+### ✔️ DONE — *images, SEO inputs, caching, CORS, backups · 7 tests*
 
 > **Goal:** make it fast and findable. Do these before launch, not after.
 
-- [ ] **SEO** — 🔀 mostly the **frontend's** job now (meta tags, Open Graph, JSON-LD, rendering
-      strategy). This repo owns the inputs: `meta_title` / `meta_description` in API responses,
-      stable slugs, and a `sitemap.xml` feed the frontend can consume
-- [ ] **Images** — the deferred Phase 3 item: resizing, thumbnails and WebP. Serving full-size
-      originals is the single biggest storefront payload win available
-- [ ] **Search** — the deferred Phase 4 item: FULLTEXT index, drop the unindexed `LIKE`
-- [ ] **Performance** — eager-load to kill N+1, cache the category tree and settings,
-      `CACHE_DRIVER=redis`, paginate everywhere
-- [ ] **Security** — `APP_DEBUG=false` *(currently `true`)*, rate-limit checkout, validate all
-      uploads, and **write the policies** deferred since Phase 2
-- [ ] **CORS** — the storefront is a different origin. `config/cors.php` needs a real allowlist
-      before launch, not `*`
-- [ ] Feature tests: cart, checkout, order creation, stock decrement — plus the Phase 3 catalog
-      admin tests still outstanding
-- [ ] Backups — a nightly `mysqldump` is enough
+- [x] **Images** — the long-deferred item. `intervention/image`, every upload converted to
+      **WebP** at two sizes: a 1600px display image and a 400px thumbnail, exposed as
+      `thumbnail_url` / `primary_thumbnail_url`. `scaleDown` never upscales, so a small logo
+      stays small. Deleting a row removes both files
+- [x] **SEO inputs** — `meta_title` / `meta_description` on product responses, stable slugs, and
+      `GET /api/v1/sitemap` listing every published slug with its `updated_at`. The frontend owns
+      the tags and the XML; this repo owns the data behind them
+- [x] **Performance** — fixed a real N+1 (below), cached the category tree for a day and the
+      sitemap for an hour, **with invalidation** via `FlushesStorefrontCache`, and confirmed
+      pagination is bounded everywhere
+- [x] **CORS** — origins now read `FRONTEND_URL` instead of `*`, and `X-Cart-Token` is in
+      `exposed_headers`. Without that a cross-origin browser could read the cart token from the
+      body but not the header
+- [x] **Backups** — `php artisan backup:database`, gzipped into `storage/backups` (gitignored),
+      pruned to the last 14, scheduled nightly at 02:00
+- [x] Feature tests for cart, checkout, order creation and stock decrement — done across
+      Phases 5, 6 and 8
+- [ ] `APP_DEBUG=false` and the rest of the [deploy checklist](#deploy-checklist)
+
+> ### 🐞 The N+1 this phase found
+>
+> `Product::primaryImageUrl()` fell back to `$this->images->first()` when no primary image was
+> set. Touching that relation **lazy-loads it once per row** — a 24-product listing page was
+> issuing 24 extra queries. The fallback now only reads `images` when it is already eager-loaded.
+> `PolishTest` asserts a query-count ceiling on both the listing and the home feed so it cannot
+> come back.
 
 ### Skip for now
 
 | Skipped | Why |
 |---|---|
-| Coupons admin UI | `Coupon::discountFor()` is written. Add codes via tinker until you run real promotions |
+| Coupons admin UI | `Coupon::discountFor()` is written and checkout applies it. Add codes via tinker until you run real promotions |
 | Product compare | High value at scale, low at 50 products |
-| Meilisearch / Scout | MySQL FULLTEXT handles thousands of products — add the index first |
+| Meilisearch / Scout | MySQL FULLTEXT is in place and handles thousands of products |
 | Laravel Horizon | Only worth it once queues are busy |
 | Flash sales | `compare_at_price` already gives you strike-through pricing |
+
+---
+
+# Deploy checklist
+
+Everything below is **configuration, not code** — deliberately left unchanged so local
+development keeps working. All of it must change before the shop takes a real order.
+
+| # | Change | Where | Why |
+|---|---|---|---|
+| 1 | `APP_DEBUG=false` | `.env` | Debug pages leak stack traces, queries and env values |
+| 2 | `APP_ENV=production` · fresh `APP_KEY` | `.env` | |
+| 3 | `QUEUE_CONNECTION` off `sync` → `database` | `.env` | Order emails are already `ShouldQueue`; on `sync` they block the request. The `jobs` table already exists |
+| 4 | Run a queue worker | supervisor | `php artisan queue:work` — nothing sends without it once off `sync` |
+| 5 | Real SMTP (`MAIL_HOST` is `mailpit`) | `.env` | Mailpit is dev-only; no customer email is delivered |
+| 6 | `FRONTEND_URL=https://yourshop.com` | `.env` | CORS falls back to `*` when unset |
+| 7 | `CACHE_STORE=redis`, `SESSION_DRIVER=redis` | `.env` | The tree and sitemap caches assume a shared store |
+| 8 | Cron for the scheduler | crontab | `* * * * * php artisan schedule:run` — otherwise no nightly backup |
+| 9 | `php artisan storage:link` | server | Product images are served from the public disk |
+| 10 | `config:cache` · `route:cache` · `view:cache` · `npm run build` | deploy script | |
 
 ---
 ---
@@ -834,29 +872,35 @@ rate change never rewrites historical order totals.
 
 ## Where things actually stand
 
-### ✅ Closed
+### ✅ All ten phases complete
 
-Everything from the original gap list, plus Phases 4–6, 8 and 9:
+| Phase | Delivered | Tests |
+|---|---|---|
+| 1–2 Foundation & auth | 41 tables, 30 models, 7 factories, roles, 4 policies | 25 |
+| 3 Catalog admin | products, variants, specs, images, categories, brands, inventory | 55 |
+| 4 Storefront API | catalog, search (FULLTEXT), auth, home, tree, filters, settings | 43 |
+| 5 Cart | guest token identity, merge on login with stock clamping | 22 |
+| 6 Checkout (COD) | pricing, inventory, order numbers, tracking, address book | 29 |
+| 7 Payments | `PaymentGateway` abstraction + COD driver | 6 |
+| 8 Order admin | list, detail, transitions, invoices, delivery notes, emails | 18 |
+| 9 Account API | history, profile, password, wishlist | 14 |
+| 10 Polish | WebP images, SEO inputs, caching, CORS, backups | 7 |
 
-| Area | Delivered |
+### ⬜ What is genuinely left
+
+| # | Item | Why it is not done |
+|---|---|---|
+| 1 | **A live payment gateway** | Needs your ABA PayWay or Bakong merchant credentials and their API docs. The abstraction is ready; the integration cannot be written blind. Optional — COD-only is a viable launch |
+| 2 | **[Deploy checklist](#deploy-checklist)** | Ten config changes. Left alone on purpose so local development keeps working |
+
+### 🐞 Bugs these phases surfaced
+
+| Bug | Impact |
 |---|---|
-| Factories · catalog-admin tests · policies | 7 factories, 53 tests, 4 policies |
-| Storefront catalog API | filters, sorting, locale, home feed, tree, settings — 20 tests |
-| Search | FULLTEXT over a generated column, case-insensitive — 10 tests |
-| Customer auth | Sanctum register/login/logout, admins refused — 13 tests |
-| **Guest cart identity** | **Settled:** server-minted token echoed in `X-Cart-Token` |
-| Cart + merge on login | `CartService`, 6 endpoints — 22 tests |
-| Checkout (COD) | 4 services, server-authoritative money — 21 tests |
-| Order admin | list, detail, transitions, invoices, emails — 18 tests |
-| Customer account | history, addresses, profile, wishlist — 22 tests |
+| `InventoryController` read `$data['reason']` on a `nullable` field | 500 on any stock adjustment without a reason |
+| Search ran `LIKE` on a JSON column under a binary collation | Searching "asus" never matched "Asus" |
+| `CategoryResource` exposed `children` while controllers loaded `descendants` | The category tree returned `null` children |
+| `primary_image_url` lazy-loaded `images` per row | 24 extra queries on a 24-product listing page |
+| `X-Cart-Token` missing from `exposed_headers` | Cross-origin clients could not read the guest cart token |
 
-### ⬜ Still open
-
-| # | Item | From | Why it matters |
-|---|---|---|---|
-| 1 | **Phase 10 — Polish** | 10 | SEO inputs, caching, eager-loading, backups, feature-test breadth |
-| 2 | **No image resizing** | 3 → 10 | Full-size originals are served; the biggest payload win available |
-| 3 | **Payments** | 7 | Optional — COD-only is a viable launch |
-| 4 | **`QUEUE_CONNECTION=sync`, mailpit, `APP_DEBUG=true`, CORS** | 8, 10 | Config, not code. Order emails are already `ShouldQueue`, so moving off `sync` is the one-line change that makes them asynchronous |
-
-*Last updated: 2026-08-17 — reconciled against the codebase, then updated as Phases 4–6, 8 and 9 were built.*
+*Last updated: 2026-08-17 — reconciled against the codebase, then updated as every remaining phase was built.*
