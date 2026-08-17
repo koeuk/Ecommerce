@@ -14,7 +14,7 @@ class ProductImage extends Model
     use HasFactory;
 
     protected $fillable = [
-        'product_id', 'product_variant_id', 'path', 'alt_text', 'is_primary', 'sort_order',
+        'product_id', 'product_variant_id', 'path', 'thumbnail_path', 'alt_text', 'is_primary', 'sort_order',
     ];
 
     protected function casts(): array
@@ -37,8 +37,23 @@ class ProductImage extends Model
 
     protected function url(): CastAttribute
     {
-        return CastAttribute::make(get: fn () => Str::startsWith($this->path, ['http://', 'https://'])
-            ? $this->path
-            : Storage::url($this->path));
+        return CastAttribute::make(get: fn () => $this->publicUrl($this->path));
+    }
+
+    /** Falls back to the full image for rows predating thumbnailing. */
+    protected function thumbnailUrl(): CastAttribute
+    {
+        return CastAttribute::make(
+            get: fn () => $this->publicUrl($this->thumbnail_path ?: $this->path),
+        );
+    }
+
+    private function publicUrl(?string $path): ?string
+    {
+        if (blank($path)) {
+            return null;
+        }
+
+        return Str::startsWith($path, ['http://', 'https://']) ? $path : Storage::url($path);
     }
 }

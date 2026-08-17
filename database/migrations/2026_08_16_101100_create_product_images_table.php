@@ -14,6 +14,9 @@ return new class extends Migration
             $table->foreignId('product_variant_id')->nullable()
                 ->constrained()->cascadeOnDelete();
             $table->string('path');
+            // Derived on upload: a WebP thumbnail for grids and cart lines,
+            // so listing pages never download full-size originals.
+            $table->string('thumbnail_path')->nullable();
             $table->string('alt_text')->nullable();
             $table->boolean('is_primary')->default(false);
             $table->unsignedInteger('sort_order')->default(0);

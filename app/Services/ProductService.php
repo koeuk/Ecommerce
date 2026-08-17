@@ -9,10 +9,11 @@ use App\Models\ProductSpecification;
 use App\Models\ProductVariant;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 
 class ProductService
 {
+    public function __construct(private readonly ImageService $images) {}
+
     public function create(array $data): Product
     {
         return DB::transaction(function () use ($data) {
@@ -168,11 +169,13 @@ class ProductService
         $hasPrimary = $product->images()->where('is_primary', true)->exists();
 
         foreach ($files as $file) {
-            $path = $file->store("products/{$product->id}", 'public');
+            // Converted to WebP and thumbnailed rather than stored as-is.
+            $stored = $this->images->store($file, "products/{$product->id}");
 
             ProductImage::create([
                 'product_id' => $product->id,
-                'path' => $path,
+                'path' => $stored['path'],
+                'thumbnail_path' => $stored['thumbnail_path'],
                 'alt_text' => $product->getTranslation('title', 'en'),
                 'is_primary' => ! $hasPrimary,
                 'sort_order' => ++$nextOrder,
@@ -188,9 +191,7 @@ class ProductService
             $wasPrimary = $image->is_primary;
             $productId = $image->product_id;
 
-            if (! str_starts_with($image->path, 'http')) {
-                Storage::disk('public')->delete($image->path);
-            }
+            $this->images->delete($image->path, $image->thumbnail_path);
 
             $image->delete();
 

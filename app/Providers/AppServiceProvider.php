@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Enums\Role;
+use App\Services\ImageService;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -13,7 +14,9 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        //
+        // ImageService wraps an Intervention manager that needs an explicit
+        // driver, so it cannot be auto-resolved.
+        $this->app->singleton(ImageService::class, fn () => ImageService::make());
     }
 
     public function boot(): void

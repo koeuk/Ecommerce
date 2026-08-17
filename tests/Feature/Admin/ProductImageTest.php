@@ -63,8 +63,44 @@ class ProductImageTest extends TestCase
         $this->assertSame('Gaming Laptop', $images[0]->alt_text);
 
         foreach ($images as $image) {
+            // Uploads are converted to WebP, and each gets a thumbnail.
+            $this->assertStringEndsWith('.webp', $image->path);
+            $this->assertStringEndsWith('-thumb.webp', $image->thumbnail_path);
+
             Storage::disk('public')->assertExists($image->path);
+            Storage::disk('public')->assertExists($image->thumbnail_path);
         }
+    }
+
+    public function test_a_large_upload_is_scaled_down(): void
+    {
+        $this->actingAs($this->manager)->post(route('admin.products.store'), $this->payload([
+            'images' => [UploadedFile::fake()->image('huge.jpg', 4000, 3000)],
+        ]));
+
+        $image = Product::firstWhere('sku', 'LAP-001')->images()->first();
+
+        $stored = Storage::disk('public')->get($image->path);
+        [$width] = getimagesizefromstring($stored);
+
+        $this->assertSame(1600, $width);
+
+        [$thumbWidth] = getimagesizefromstring(Storage::disk('public')->get($image->thumbnail_path));
+        $this->assertSame(400, $thumbWidth);
+    }
+
+    public function test_a_small_upload_is_not_upscaled(): void
+    {
+        $this->actingAs($this->manager)->post(route('admin.products.store'), $this->payload([
+            'images' => [UploadedFile::fake()->image('small.jpg', 200, 150)],
+        ]));
+
+        $image = Product::firstWhere('sku', 'LAP-001')->images()->first();
+
+        [$width] = getimagesizefromstring(Storage::disk('public')->get($image->path));
+
+        // scaleDown only ever shrinks — a small image must not be inflated.
+        $this->assertSame(200, $width);
     }
 
     public function test_non_image_uploads_are_rejected(): void
@@ -113,8 +149,9 @@ class ProductImageTest extends TestCase
     {
         $product = Product::factory()->create();
         Storage::disk('public')->put('a.jpg', 'x');
+        Storage::disk('public')->put('a-thumb.jpg', 'x');
 
-        $a = ProductImage::create(['product_id' => $product->id, 'path' => 'a.jpg', 'sort_order' => 1, 'is_primary' => true]);
+        $a = ProductImage::create(['product_id' => $product->id, 'path' => 'a.jpg', 'thumbnail_path' => 'a-thumb.jpg', 'sort_order' => 1, 'is_primary' => true]);
         $b = ProductImage::create(['product_id' => $product->id, 'path' => 'b.jpg', 'sort_order' => 2, 'is_primary' => false]);
 
         $this->actingAs($this->manager)
@@ -123,8 +160,9 @@ class ProductImageTest extends TestCase
         $this->assertDatabaseMissing('product_images', ['id' => $a->id]);
         $this->assertTrue($b->fresh()->is_primary);
 
-        // The stored file goes with the row.
+        // The stored file and its thumbnail both go with the row.
         Storage::disk('public')->assertMissing('a.jpg');
+        Storage::disk('public')->assertMissing('a-thumb.jpg');
     }
 
     public function test_an_image_belonging_to_another_product_is_not_reachable(): void
