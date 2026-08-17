@@ -417,12 +417,16 @@ correct total.
 
 > **Goal:** take money online. **Optional** — plenty of Cambodian shops run COD-only indefinitely.
 
-- [x] **`PaymentGateway` interface** + `GatewayRegistry` + `config/payments.php`. Checkout never
-      names a gateway, so adding one is a class plus a config line
-- [x] **`CodGateway`** — records a pending payment row so every order has a payment history;
-      the admin marks it paid when the courier hands the cash over
-- [x] Only gateways reporting `isAvailable()` are advertised, so a half-configured provider
-      cannot reach the checkout screen
+- [x] **`PaymentGateway` interface** + `GatewayRegistry` + `config/payments.php`
+- [x] **Wired into checkout.** `CheckoutService` resolves the requested gateway from the
+      registry and calls `initiate()` on it, rather than setting payment state inline — so
+      adding a provider is genuinely a class plus a config line, with checkout untouched
+- [x] **`CodGateway`** — records a pending payment row on every order, so an order has a payment
+      history from the moment it is placed; the admin marks it paid when the courier hands the
+      cash over
+- [x] Only gateways reporting `isAvailable()` are advertised, and `CheckoutRequest` validates
+      `payment_method` against that same list — a provider whose class exists but is not
+      configured cannot be requested
 - [ ] ⚠️ **A real gateway.** ABA PayWay or Bakong KHQR — this needs *your* merchant credentials
       and their API docs, so it is the one thing here that cannot be written blind
 - [ ] Webhook handling + **signature verification** — the interface documents this as mandatory;

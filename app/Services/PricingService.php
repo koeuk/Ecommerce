@@ -26,6 +26,7 @@ class PricingService
         ?string $province = null,
         ?int $shippingMethodId = null,
         ?string $couponCode = null,
+        ?int $userId = null,
     ): array {
         $subtotal = round((float) $lines->sum('subtotal'), 2);
         $weight = (float) $lines->sum(fn (array $l) => ($l['weight'] ?? 0) * $l['quantity']);
@@ -36,7 +37,7 @@ class PricingService
 
         $shipping = $method['cost'] ?? 0.0;
 
-        [$discount, $coupon, $couponError] = $this->discount($couponCode, $subtotal);
+        [$discount, $coupon, $couponError] = $this->discount($couponCode, $subtotal, $userId);
 
         // Discount never exceeds the goods value.
         $discount = min($discount, $subtotal);
@@ -98,7 +99,7 @@ class PricingService
     }
 
     /** @return array{0: float, 1: ?Coupon, 2: ?string} */
-    private function discount(?string $code, float $subtotal): array
+    private function discount(?string $code, float $subtotal, ?int $userId = null): array
     {
         if (blank($code)) {
             return [0.0, null, null];
@@ -110,8 +111,10 @@ class PricingService
             return [0.0, null, __('That coupon code is not valid.')];
         }
 
-        if (! $coupon->is_active || $coupon->is_expired || $coupon->is_exhausted) {
-            return [0.0, null, __('That coupon is no longer available.')];
+        // Coupon owns every redeemability rule — start date, expiry, global
+        // exhaustion and the per-customer limit — so nothing is missed here.
+        if ($error = $coupon->redemptionError($userId)) {
+            return [0.0, null, $error];
         }
 
         $discount = $coupon->discountFor($subtotal);

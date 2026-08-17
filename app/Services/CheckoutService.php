@@ -11,6 +11,7 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\ProductVariant;
 use App\Models\User;
+use App\Payments\GatewayRegistry;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\ValidationException;
@@ -30,6 +31,7 @@ class CheckoutService
         private readonly PricingService $pricing,
         private readonly InventoryService $inventory,
         private readonly OrderNumberGenerator $numbers,
+        private readonly GatewayRegistry $gateways,
     ) {}
 
     public function place(?User $user, ?string $cartToken, array $data): Order
@@ -50,6 +52,7 @@ class CheckoutService
             $address['state'] ?? null,
             $data['shipping_method_id'] ?? null,
             $data['coupon_code'] ?? null,
+            $user?->id,
         );
 
         // A coupon that failed to apply must not silently drop off the order.
@@ -61,6 +64,11 @@ class CheckoutService
             // Re-check stock under lock — the cart may have gone stale since
             // it was last read.
             $this->assertStillPurchasable($lines);
+
+            // The quote above ran outside this transaction, so two concurrent
+            // checkouts could both have seen the last remaining redemption.
+            // Re-check under a row lock before committing to the discount.
+            $this->assertCouponStillRedeemable($quote['coupon']['id'] ?? null, $user);
 
             $order = Order::create([
                 'order_number' => $this->numbers->generate(),
@@ -102,6 +110,12 @@ class CheckoutService
             $this->inventory->decrementForOrder($order);
 
             $this->recordCouponUsage($order, $user);
+
+            // Payment goes through the gateway abstraction rather than being
+            // set inline, so adding a provider never touches this class.
+            $this->gateways
+                ->get($data['payment_method'] ?? config('payments.default', 'cod'))
+                ->initiate($order);
 
             $order->statusHistories()->create([
                 'from_status' => null,
@@ -171,6 +185,22 @@ class CheckoutService
         }
 
         Mail::to($order->customer_email)->send(new OrderMail($order, $stage));
+    }
+
+    /** Locks the coupon row so the redemption check cannot be raced. */
+    private function assertCouponStillRedeemable(?int $couponId, ?User $user): void
+    {
+        if ($couponId === null) {
+            return;
+        }
+
+        $coupon = Coupon::lockForUpdate()->find($couponId);
+
+        if (! $coupon || ($error = $coupon->redemptionError($user?->id))) {
+            throw ValidationException::withMessages([
+                'coupon_code' => $error ?? __('That coupon code is not valid.'),
+            ]);
+        }
     }
 
     private function recordCouponUsage(Order $order, ?User $user): void

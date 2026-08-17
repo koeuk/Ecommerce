@@ -66,6 +66,49 @@ class Coupon extends Model
         );
     }
 
+    /** A coupon dated to start later must not be redeemable yet. */
+    protected function hasNotStarted(): CastAttribute
+    {
+        return CastAttribute::make(
+            get: fn () => $this->starts_at !== null && $this->starts_at->isFuture(),
+        );
+    }
+
+    /** How many times this customer has already redeemed it. */
+    public function redemptionsBy(?int $userId): int
+    {
+        if ($userId === null) {
+            return 0;   // guests are not tracked across orders
+        }
+
+        return $this->usages()->where('user_id', $userId)->count();
+    }
+
+    public function exceededLimitFor(?int $userId): bool
+    {
+        return $this->per_user_limit !== null
+            && $this->redemptionsBy($userId) >= $this->per_user_limit;
+    }
+
+    /**
+     * The single authority on whether this coupon may be redeemed right now.
+     *
+     * Returns null when it may, or a customer-facing reason when it may not.
+     * Both the quote and the checkout transaction call this, so the two can
+     * never drift apart.
+     */
+    public function redemptionError(?int $userId = null): ?string
+    {
+        return match (true) {
+            ! $this->is_active => __('That coupon is no longer available.'),
+            $this->has_not_started => __('That coupon is not active yet.'),
+            $this->is_expired => __('That coupon has expired.'),
+            $this->is_exhausted => __('That coupon has been fully redeemed.'),
+            $this->exceededLimitFor($userId) => __('You have already used that coupon.'),
+            default => null,
+        };
+    }
+
     /** Discount for a given subtotal, respecting the max_discount cap. */
     public function discountFor(float $subtotal): float
     {

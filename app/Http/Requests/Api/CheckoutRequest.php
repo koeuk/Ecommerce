@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests\Api;
 
+use App\Payments\GatewayRegistry;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class CheckoutRequest extends FormRequest
 {
@@ -36,10 +38,16 @@ class CheckoutRequest extends FormRequest
             'coupon_code' => ['nullable', 'string', 'max:60'],
             'customer_note' => ['nullable', 'string', 'max:2000'],
 
-            // COD is the only method today; the field exists so adding a
-            // gateway in Phase 7 does not change the contract.
-            'payment_method' => ['nullable', 'in:cod'],
+            // Validated against the registry, so a gateway that is not
+            // configured cannot be requested even if its class exists.
+            'payment_method' => ['nullable', Rule::in($this->availableGateways())],
         ];
+    }
+
+    /** @return array<string> */
+    private function availableGateways(): array
+    {
+        return array_column(app(GatewayRegistry::class)->options(), 'key');
     }
 
     public function attributes(): array

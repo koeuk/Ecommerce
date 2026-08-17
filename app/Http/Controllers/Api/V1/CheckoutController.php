@@ -42,6 +42,7 @@ class CheckoutController extends Controller
                 $data['province'] ?? null,
                 $data['shipping_method_id'] ?? null,
                 $data['coupon_code'] ?? null,
+                $this->user($request)?->id,
             ) + ['cart' => $summary],
         ]);
     }

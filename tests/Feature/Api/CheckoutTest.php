@@ -310,6 +310,52 @@ class CheckoutTest extends TestCase
         $this->assertSame('21.50', $order->grand_total);
     }
 
+    public function test_placing_an_order_records_a_payment_row_via_the_gateway(): void
+    {
+        $variant = $this->variant(price: 50);
+        $token = $this->guestCart($variant, 2);
+
+        $this->withHeader('X-Cart-Token', $token)
+            ->postJson('/api/v1/checkout', $this->payload())
+            ->assertCreated();
+
+        $order = Order::first();
+
+        // Checkout goes through GatewayRegistry, so every order has a payment
+        // history from the moment it is placed.
+        $this->assertDatabaseHas('payments', [
+            'order_id' => $order->id,
+            'gateway' => 'cod',
+            // 2 x $50 hits the free-shipping threshold, so this is the total.
+            'amount' => 100.00,
+            'status' => 'unpaid',
+        ]);
+    }
+
+    public function test_an_unconfigured_payment_method_is_rejected(): void
+    {
+        $variant = $this->variant();
+        $token = $this->guestCart($variant);
+
+        $this->withHeader('X-Cart-Token', $token)
+            ->postJson('/api/v1/checkout', $this->payload(['payment_method' => 'stripe']))
+            ->assertJsonValidationErrors('payment_method');
+
+        $this->assertDatabaseCount('orders', 0);
+    }
+
+    public function test_cod_can_be_requested_explicitly(): void
+    {
+        $variant = $this->variant();
+        $token = $this->guestCart($variant);
+
+        $this->withHeader('X-Cart-Token', $token)
+            ->postJson('/api/v1/checkout', $this->payload(['payment_method' => 'cod']))
+            ->assertCreated();
+
+        $this->assertDatabaseHas('payments', ['gateway' => 'cod']);
+    }
+
     // Coupons
 
     public function test_a_valid_coupon_reduces_the_total(): void
