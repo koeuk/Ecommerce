@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Enums\Role;
 use App\Payments\GatewayRegistry;
 use App\Services\ImageService;
+use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -27,6 +28,17 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        /*
+         * The storefront owns the reset screen, so the emailed link points
+         * there rather than at this app, which serves only the admin panel.
+         */
+        ResetPassword::createUrlUsing(function ($notifiable, string $token) {
+            $frontend = rtrim((string) config('app.frontend_url'), '/');
+
+            return $frontend.'/reset-password?token='.$token
+                .'&email='.urlencode($notifiable->getEmailForPasswordReset());
+        });
+
         // Super admin bypasses every permission check.
         Gate::before(function ($user) {
             return $user->hasRole(Role::SuperAdmin->value) ? true : null;

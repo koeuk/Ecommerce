@@ -96,6 +96,12 @@ return [
 
     'supported_locales' => ['en', 'km'],
 
+    /*
+     * Where the storefront lives. Used for password-reset links and as the
+     * CORS allow-list (see config/cors.php).
+     */
+    'frontend_url' => env('FRONTEND_URL', 'http://localhost:3000'),
+
     'locale_names' => [
         'en' => 'English',
         'km' => 'ខ្មែរ',

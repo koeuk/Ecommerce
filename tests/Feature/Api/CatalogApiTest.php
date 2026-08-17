@@ -6,6 +6,8 @@ use App\Models\Brand;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\Setting;
+use App\Models\Tag;
+use Database\Seeders\ReferenceDataSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Tests\TestCase;
@@ -242,6 +244,45 @@ class CatalogApiTest extends TestCase
         $this->getJson('/api/v1/settings')
             ->assertOk()
             ->assertJsonPath('data.free_shipping_threshold', 100);
+    }
+
+    public function test_settings_expose_the_khr_conversion_rate(): void
+    {
+        $this->seed(ReferenceDataSeeder::class);
+
+        $response = $this->getJson('/api/v1/settings')->assertOk();
+
+        // Prices are stored in USD; the storefront needs the rate to show riel.
+        $codes = array_column($response->json('data.currencies'), 'code');
+
+        $this->assertContains('USD', $codes);
+        $this->assertContains('KHR', $codes);
+
+        $khr = collect($response->json('data.currencies'))->firstWhere('code', 'KHR');
+        $this->assertGreaterThan(1, $khr['exchange_rate']);
+    }
+
+    public function test_static_page_copy_is_exposed(): void
+    {
+        $this->seed(ReferenceDataSeeder::class);
+
+        $this->getJson('/api/v1/settings')
+            ->assertOk()
+            ->assertJsonStructure(['data' => ['page_about', 'page_warranty', 'page_returns', 'page_shipping']]);
+    }
+
+    public function test_products_can_be_filtered_by_tag(): void
+    {
+        $tag = Tag::create(['name' => ['en' => 'Clearance'], 'slug' => 'clearance']);
+
+        $tagged = Product::factory()->create();
+        $tagged->tags()->attach($tag->id);
+        Product::factory()->create();
+
+        $this->getJson("/api/v1/products?filter[tag]={$tag->slug}")
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $tagged->id);
     }
 
     public function test_filter_metadata_reflects_the_current_selection(): void

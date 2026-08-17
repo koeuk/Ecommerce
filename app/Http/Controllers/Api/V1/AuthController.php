@@ -7,9 +7,13 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\LoginRequest;
 use App\Http\Requests\Api\RegisterRequest;
 use App\Models\User;
+use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Rules\Password as PasswordRule;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -70,6 +74,55 @@ class AuthController extends Controller
             'token' => $this->issueToken($user, $request),
             'user' => $this->profile($user),
         ]);
+    }
+
+    /**
+     * POST /api/v1/forgot-password
+     *
+     * Always reports success, whether or not the address is registered —
+     * a differing response would let anyone enumerate customer emails.
+     */
+    public function forgotPassword(Request $request): JsonResponse
+    {
+        $request->validate(['email' => ['required', 'email']]);
+
+        Password::sendResetLink($request->only('email'));
+
+        return response()->json([
+            'message' => __('If that address is registered, a reset link is on its way.'),
+        ]);
+    }
+
+    /** POST /api/v1/reset-password */
+    public function resetPassword(Request $request): JsonResponse
+    {
+        $request->validate([
+            'token' => ['required', 'string'],
+            'email' => ['required', 'email'],
+            'password' => ['required', 'confirmed', PasswordRule::defaults()],
+        ]);
+
+        $status = Password::reset(
+            $request->only('email', 'password', 'password_confirmation', 'token'),
+            function (User $user, string $password) {
+                $user->forceFill([
+                    'password' => Hash::make($password),
+                    'remember_token' => Str::random(60),
+                ])->save();
+
+                // A reset is a recovery from possible compromise, so every
+                // existing session goes with it.
+                $user->tokens()->delete();
+
+                event(new PasswordReset($user));
+            }
+        );
+
+        if ($status !== Password::PasswordReset) {
+            throw ValidationException::withMessages(['email' => [__($status)]]);
+        }
+
+        return response()->json(['message' => __($status)]);
     }
 
     /** Revokes only the token that made this request. */

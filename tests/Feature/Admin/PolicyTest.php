@@ -116,6 +116,22 @@ class PolicyTest extends TestCase
         $this->assertFalse($this->manager->can('forceDelete', $order));
     }
 
+    public function test_a_customer_may_cancel_only_their_own_early_order(): void
+    {
+        $mine = Order::factory()->create(['user_id' => $this->customer->id]);
+        $theirs = Order::factory()->create();
+        $shipped = Order::factory()->shipped()->create(['user_id' => $this->customer->id]);
+
+        // Customers hold no 'update order' permission — ownership authorises
+        // them, and OrderStatus still decides whether the move is legal.
+        $this->assertTrue($this->customer->can('cancel', $mine));
+        $this->assertFalse($this->customer->can('cancel', $theirs));
+        $this->assertFalse($this->customer->can('cancel', $shipped));
+
+        // Admins keep cancelling via their permission.
+        $this->assertTrue($this->manager->can('cancel', $theirs));
+    }
+
     public function test_a_status_transition_must_be_legal(): void
     {
         $delivered = Order::factory()->delivered()->create();

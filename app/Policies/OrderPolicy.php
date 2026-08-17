@@ -44,10 +44,20 @@ class OrderPolicy
         return $user->can('update order') && $order->canTransitionTo($target);
     }
 
-    /** Cancelling is a status change, not a delete. */
+    /**
+     * Cancelling is a status change, not a delete.
+     *
+     * Unlike the other transitions, the customer who placed the order may do
+     * this to their own — they hold no `update order` permission, so the
+     * ownership check is what authorises them. The legality of the move is
+     * still `OrderStatus`'s call, which is what stops a shipped order being
+     * called back.
+     */
     public function cancel(User $user, Order $order): bool
     {
-        return $this->transitionTo($user, $order, OrderStatus::Cancelled);
+        $mayAct = $user->can('update order') || $order->user_id === $user->id;
+
+        return $mayAct && $order->canTransitionTo(OrderStatus::Cancelled);
     }
 
     /**

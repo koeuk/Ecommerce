@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Enums\OrderStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\ProductResource;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\Wishlist;
+use App\Services\OrderService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -46,6 +48,36 @@ class AccountController extends Controller
                 'total' => $orders->total(),
             ],
         ]);
+    }
+
+    /**
+     * POST /api/v1/account/orders/{number}/cancel
+     *
+     * A customer may call off their own order while it is still early in the
+     * lifecycle. OrderStatus owns which states allow that, and cancelling
+     * returns the stock — the same path the admin takes.
+     */
+    public function cancelOrder(Request $request, string $number, OrderService $orders): JsonResponse
+    {
+        $order = Order::with('items')
+            ->where('user_id', $request->user()->id)
+            ->where('order_number', $number)
+            ->firstOrFail();
+
+        if ($request->user()->cannot('cancel', $order)) {
+            throw ValidationException::withMessages([
+                'order' => __('This order can no longer be cancelled. Please contact us.'),
+            ]);
+        }
+
+        $orders->transition(
+            $order,
+            OrderStatus::Cancelled,
+            $request->user(),
+            'Cancelled by the customer',
+        );
+
+        return response()->json(['message' => __('Your order has been cancelled.')]);
     }
 
     /** PUT /api/v1/account/profile */

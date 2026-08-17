@@ -67,6 +67,8 @@ Route::prefix('v1')->middleware('api.locale')->group(function () {
     Route::middleware('throttle:customer-auth')->group(function () {
         Route::post('register', [AuthController::class, 'register']);
         Route::post('login', [AuthController::class, 'login']);
+        Route::post('forgot-password', [AuthController::class, 'forgotPassword']);
+        Route::post('reset-password', [AuthController::class, 'resetPassword']);
     });
 
     // Authenticated customer
@@ -77,6 +79,7 @@ Route::prefix('v1')->middleware('api.locale')->group(function () {
 
         // Account — order history, profile, wishlist
         Route::get('account/orders', [AccountController::class, 'orders']);
+        Route::post('account/orders/{number}/cancel', [AccountController::class, 'cancelOrder']);
         Route::put('account/profile', [AccountController::class, 'updateProfile']);
         Route::put('account/password', [AccountController::class, 'updatePassword']);
 

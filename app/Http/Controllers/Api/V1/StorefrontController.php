@@ -7,6 +7,7 @@ use App\Http\Resources\CategoryResource;
 use App\Http\Resources\ProductResource;
 use App\Models\Brand;
 use App\Models\Category;
+use App\Models\Currency;
 use App\Models\Product;
 use App\Models\Setting;
 use App\Payments\GatewayRegistry;
@@ -81,6 +82,19 @@ class StorefrontController extends Controller
             'data' => Setting::all_cached() + [
                 // Only gateways that are actually configured.
                 'payment_methods' => app(GatewayRegistry::class)->options(),
+
+                // Prices are stored in USD; KHR is a display conversion, so
+                // the storefront needs the rate to render riel.
+                'currencies' => Currency::where('is_active', true)
+                    ->orderBy('sort_order')
+                    ->get()
+                    ->map(fn (Currency $c) => [
+                        'code' => $c->code,
+                        'symbol' => $c->symbol,
+                        'exchange_rate' => (float) $c->exchange_rate,
+                        'decimal_places' => $c->decimal_places,
+                        'is_base' => (bool) $c->is_base,
+                    ]),
             ],
         ]);
     }

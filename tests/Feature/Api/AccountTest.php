@@ -4,7 +4,9 @@ namespace Tests\Feature\Api;
 
 use App\Enums\Role;
 use App\Models\Order;
+use App\Models\OrderItem;
 use App\Models\Product;
+use App\Models\ProductVariant;
 use App\Models\User;
 use App\Models\Wishlist;
 use Database\Seeders\RoleSeeder;
@@ -149,6 +151,54 @@ class AccountTest extends TestCase
         // The device that made the change stays signed in; the other does not.
         $this->assertSame(1, $this->customer->fresh()->tokens()->count());
         $this->assertNull($this->customer->tokens()->find($other->accessToken->id));
+    }
+
+    // Cancelling an order
+
+    public function test_a_customer_can_cancel_their_own_pending_order(): void
+    {
+        $product = Product::factory()->create();
+        $variant = ProductVariant::factory()->forProduct($product)
+            ->create(['stock_quantity' => 7]);
+
+        $order = Order::factory()->create(['user_id' => $this->customer->id]);
+        OrderItem::create([
+            'order_id' => $order->id, 'product_id' => $product->id,
+            'product_variant_id' => $variant->id, 'product_name' => 'Laptop',
+            'sku' => 'A-1', 'unit_price' => 100, 'quantity' => 3, 'subtotal' => 300,
+        ]);
+
+        $this->actingAs($this->customer, 'sanctum')
+            ->postJson("/api/v1/account/orders/{$order->order_number}/cancel")
+            ->assertOk();
+
+        $this->assertSame('cancelled', $order->fresh()->status->value);
+
+        // Cancelling puts the goods back on the shelf, same as the admin path.
+        $this->assertSame(10, $variant->fresh()->stock_quantity);
+    }
+
+    public function test_a_customer_cannot_cancel_a_shipped_order(): void
+    {
+        $order = Order::factory()->shipped()->create(['user_id' => $this->customer->id]);
+
+        // OrderStatus permits shipped -> delivered only.
+        $this->actingAs($this->customer, 'sanctum')
+            ->postJson("/api/v1/account/orders/{$order->order_number}/cancel")
+            ->assertJsonValidationErrors('order');
+
+        $this->assertSame('shipped', $order->fresh()->status->value);
+    }
+
+    public function test_a_customer_cannot_cancel_somebody_elses_order(): void
+    {
+        $order = Order::factory()->create();   // a different customer
+
+        $this->actingAs($this->customer, 'sanctum')
+            ->postJson("/api/v1/account/orders/{$order->order_number}/cancel")
+            ->assertNotFound();
+
+        $this->assertSame('pending', $order->fresh()->status->value);
     }
 
     // Wishlist

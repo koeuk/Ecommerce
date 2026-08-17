@@ -122,6 +122,17 @@ class ReferenceDataSeeder extends Seeder
             ['general', 'supported_locales', ['en', 'km']],
             ['tax', 'prices_include_tax', false],
             ['shipping', 'free_shipping_threshold', 100],
+
+            /*
+             * Static page copy. Held as settings rather than a `pages` table:
+             * there are four of them, they change once or twice a year, and
+             * this keeps them editable and translatable without another
+             * admin screen. Promote to a table if the shop ever needs more.
+             */
+            ['pages', 'page_about', ['en' => 'About us — replace this copy.']],
+            ['pages', 'page_warranty', ['en' => 'Warranty terms — replace this copy.']],
+            ['pages', 'page_returns', ['en' => 'Returns policy — replace this copy.']],
+            ['pages', 'page_shipping', ['en' => 'Shipping policy — replace this copy.']],
         ];
 
         foreach ($settings as [$group, $key, $value]) {

@@ -40,6 +40,10 @@ class ProductController extends Controller
                     ? $q->inStock()
                     : $q),
                 AllowedFilter::callback('rating_min', fn ($q, $v) => $q->where('rating_avg', '>=', (float) $v)),
+                AllowedFilter::callback('tag', fn ($q, $v) => $q->whereHas(
+                    'tags',
+                    fn ($t) => $t->whereIn('slug', (array) $v)
+                )),
                 AllowedFilter::exact('condition'),
                 AllowedFilter::exact('release_year'),
                 AllowedFilter::exact('is_featured'),
@@ -57,6 +61,7 @@ class ProductController extends Controller
                 AllowedInclude::relationship('images'),
                 AllowedInclude::relationship('variants'),
                 AllowedInclude::relationship('specifications'),
+                AllowedInclude::relationship('tags'),
             ])
             ->defaultSort('-created_at')
             ->paginate(min(request()->integer('per_page', 24), 100))
