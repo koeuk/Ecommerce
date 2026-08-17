@@ -2,14 +2,17 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Enums\FulfillmentStatus;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
+use App\Models\Setting;
 use App\Services\OrderService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response as HttpResponse;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 use Spatie\QueryBuilder\AllowedFilter;
@@ -155,7 +158,7 @@ class OrderController extends Controller
     public function updateStatus(Request $request, Order $order): RedirectResponse
     {
         $data = $request->validate([
-            'status' => ['required', \Illuminate\Validation\Rule::in(OrderStatus::values())],
+            'status' => ['required', Rule::in(OrderStatus::values())],
             'note' => ['nullable', 'string', 'max:1000'],
         ]);
 
@@ -174,6 +177,48 @@ class OrderController extends Controller
         $this->orders->markPaid($order, $request->user());
 
         return back()->with('success', 'Order marked as paid.');
+    }
+
+    /**
+     * The invoice and the delivery note are the same document with prices
+     * switched off — a note travels with the goods and should not show money.
+     */
+    public function invoice(Order $order, bool $deliveryNote = false): HttpResponse
+    {
+        $order->load('items');
+
+        $settings = Setting::all_cached();
+
+        $pdf = Pdf::loadView('pdf.invoice', [
+            'order' => $order,
+            'isDeliveryNote' => $deliveryNote,
+            'address' => $order->shipping_address ?? [],
+            'shop' => [
+                'name' => $this->localised($settings['store_name'] ?? config('app.name')),
+                'address' => $this->localised($settings['store_address'] ?? ''),
+                'phone' => $settings['store_phone'] ?? '',
+                'email' => $settings['store_email'] ?? '',
+            ],
+        ]);
+
+        $prefix = $deliveryNote ? 'delivery-note' : 'invoice';
+
+        return $pdf->download("{$prefix}-{$order->order_number}.pdf");
+    }
+
+    public function deliveryNote(Order $order): HttpResponse
+    {
+        return $this->invoice($order, deliveryNote: true);
+    }
+
+    /** Settings may be a plain string or a translatable map. */
+    private function localised(mixed $value): string
+    {
+        if (is_array($value)) {
+            return $value[app()->getLocale()] ?? $value['en'] ?? '';
+        }
+
+        return (string) $value;
     }
 
     public function updateNote(Request $request, Order $order): RedirectResponse

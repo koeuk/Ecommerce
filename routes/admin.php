@@ -88,6 +88,8 @@ Route::delete('products/{product:id}', [ProductController::class, 'destroy'])
 Route::middleware('can:view order')->group(function () {
     Route::get('orders', [OrderController::class, 'index'])->name('orders.index');
     Route::get('orders/{order:id}', [OrderController::class, 'show'])->name('orders.show');
+    Route::get('orders/{order:id}/invoice', [OrderController::class, 'invoice'])->name('orders.invoice');
+    Route::get('orders/{order:id}/delivery-note', [OrderController::class, 'deliveryNote'])->name('orders.delivery-note');
 });
 
 Route::middleware('can:update order')->group(function () {
