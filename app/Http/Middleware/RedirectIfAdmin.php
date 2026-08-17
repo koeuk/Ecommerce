@@ -12,7 +12,7 @@ class RedirectIfAdmin
     /**
      * Keeps an already-authenticated admin away from the admin login screen.
      *
-     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
+     * @param  Closure(Request): (Response)  $next
      */
     public function handle(Request $request, Closure $next, ?string $guard = null): Response
     {

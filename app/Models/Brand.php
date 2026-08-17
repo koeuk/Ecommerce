@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\FlushesStorefrontCache;
 use App\Models\Concerns\GeneratesSlug;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -12,7 +13,7 @@ use Spatie\Translatable\HasTranslations;
 
 class Brand extends Model
 {
-    use GeneratesSlug, HasFactory, HasTranslations, SoftDeletes;
+    use FlushesStorefrontCache, GeneratesSlug, HasFactory, HasTranslations, SoftDeletes;
 
     public array $translatable = ['name', 'description'];
 

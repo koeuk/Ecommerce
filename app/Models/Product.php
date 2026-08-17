@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\ProductStatus;
+use App\Models\Concerns\FlushesStorefrontCache;
 use App\Models\Concerns\GeneratesSlug;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute as CastAttribute;
@@ -17,7 +18,7 @@ use Spatie\Translatable\HasTranslations;
 
 class Product extends Model
 {
-    use GeneratesSlug, HasFactory, HasTranslations, SoftDeletes;
+    use FlushesStorefrontCache, GeneratesSlug, HasFactory, HasTranslations, SoftDeletes;
 
     public array $translatable = [
         'title', 'short_description', 'description', 'meta_title', 'meta_description',
@@ -208,10 +209,21 @@ class Product extends Model
         return CastAttribute::make(get: fn () => $this->discount_percent > 0);
     }
 
+    protected function primaryThumbnailUrl(): CastAttribute
+    {
+        return CastAttribute::make(get: fn () => $this->primaryImage?->thumbnail_url);
+    }
+
+    /**
+     * The fallback only reads `images` when it is already eager-loaded.
+     * Touching the relation unconditionally lazy-loads it once per row, which
+     * turned a 24-product listing into 24 extra queries.
+     */
     protected function primaryImageUrl(): CastAttribute
     {
         return CastAttribute::make(
-            get: fn () => $this->primaryImage?->url ?? $this->images->first()?->url,
+            get: fn () => $this->primaryImage?->url
+                ?? ($this->relationLoaded('images') ? $this->images->first()?->url : null),
         );
     }
 

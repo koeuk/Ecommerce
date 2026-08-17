@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Models\Category;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -67,7 +68,7 @@ class CategoryRequest extends FormRequest
 
     private function isDescendant(int $ancestorId, int $candidateId): bool
     {
-        $current = \App\Models\Category::find($candidateId);
+        $current = Category::find($candidateId);
 
         while ($current?->parent_id) {
             if ($current->parent_id === $ancestorId) {

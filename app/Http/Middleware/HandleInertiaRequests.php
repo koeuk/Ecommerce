@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Enums\Role;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Inertia\Middleware;
 use Spatie\Permission\Models\Permission;
 
@@ -54,7 +55,7 @@ class HandleInertiaRequests extends Middleware
      * it here or the frontend would hide every gated control from the most
      * privileged user.
      */
-    private function permissionsFor($user): \Illuminate\Support\Collection
+    private function permissionsFor($user): Collection
     {
         if ($user->hasRole(Role::SuperAdmin->value)) {
             return Permission::query()->pluck('name');

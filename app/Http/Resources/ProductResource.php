@@ -33,6 +33,11 @@ class ProductResource extends JsonResource
             'rating_count' => $this->rating_count,
 
             'primary_image_url' => $this->primary_image_url,
+            'primary_thumbnail_url' => $this->primary_thumbnail_url,
+
+            // SEO inputs — the frontend renders the tags, this supplies them.
+            'meta_title' => $this->meta_title,
+            'meta_description' => $this->meta_description,
 
             // Only present when explicitly ?include='d
             'description' => $this->when($request->routeIs('*.show'), $this->description),

@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\V1\CartController;
 use App\Http\Controllers\Api\V1\CategoryController;
 use App\Http\Controllers\Api\V1\CheckoutController;
 use App\Http\Controllers\Api\V1\ProductController;
+use App\Http\Controllers\Api\V1\SitemapController;
 use App\Http\Controllers\Api\V1\StorefrontController;
 use Illuminate\Support\Facades\Route;
 
@@ -32,6 +33,7 @@ Route::prefix('v1')->middleware('api.locale')->group(function () {
     Route::get('categories-tree', [StorefrontController::class, 'categoryTree']);
     Route::get('settings', [StorefrontController::class, 'settings']);
     Route::get('filters', [StorefrontController::class, 'filters']);
+    Route::get('sitemap', SitemapController::class);
 
     // Public catalog
     Route::get('products', [ProductController::class, 'index']);

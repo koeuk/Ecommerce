@@ -19,13 +19,22 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => ['*'],
+    /*
+     * The storefront is a separate origin. Set FRONTEND_URL (comma-separated
+     * for several) before deploying — '*' is a development convenience and
+     * must not ship.
+     */
+    'allowed_origins' => array_filter(explode(',', (string) env('FRONTEND_URL', '*'))),
 
     'allowed_origins_patterns' => [],
 
     'allowed_headers' => ['*'],
 
-    'exposed_headers' => [],
+    /*
+     * The guest cart token is returned on this header. Without exposing it,
+     * a cross-origin browser can read the body but not the header.
+     */
+    'exposed_headers' => ['X-Cart-Token'],
 
     'max_age' => 0,
 

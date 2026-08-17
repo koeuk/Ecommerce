@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\FlushesStorefrontCache;
 use App\Models\Concerns\GeneratesSlug;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -13,7 +14,7 @@ use Spatie\Translatable\HasTranslations;
 
 class Category extends Model
 {
-    use GeneratesSlug, HasFactory, HasTranslations, SoftDeletes;
+    use FlushesStorefrontCache, GeneratesSlug, HasFactory, HasTranslations, SoftDeletes;
 
     public array $translatable = ['name', 'description'];
 
@@ -36,6 +37,12 @@ class Category extends Model
             'is_featured' => 'boolean',
             'sort_order' => 'integer',
         ];
+    }
+
+    /** The navigation tree is cached for a day, so edits must clear it. */
+    protected function storefrontCacheKeys(): array
+    {
+        return ['storefront.category_tree', 'storefront.sitemap'];
     }
 
     public function parent(): BelongsTo
