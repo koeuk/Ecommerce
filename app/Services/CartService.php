@@ -117,6 +117,15 @@ class CartService
             $guestItems = CartItem::forSession($token)->with('variant')->get();
 
             foreach ($guestItems as $guestItem) {
+                // A line that sold out while the guest was browsing is dropped
+                // rather than merged — carrying it over would put an
+                // unbuyable row in the cart that checkout then refuses.
+                if ($this->clampToStock($guestItem->variant, $guestItem->quantity) === 0) {
+                    $guestItem->delete();
+
+                    continue;
+                }
+
                 $mine = CartItem::forUser($user->id)
                     ->where('product_variant_id', $guestItem->product_variant_id)
                     ->first();
@@ -215,12 +224,21 @@ class CartService
         }
     }
 
+    /**
+     * Caps a quantity at what stock allows. Returns 0 when nothing can be
+     * fulfilled — a `max(1, …)` floor here would resurrect a sold-out line
+     * as a phantom quantity of one.
+     */
     private function clampToStock(?ProductVariant $variant, int $quantity): int
     {
-        if (! $variant || $variant->allow_backorder) {
+        if (! $variant) {
+            return 0;
+        }
+
+        if ($variant->allow_backorder) {
             return $quantity;
         }
 
-        return max(1, min($quantity, $variant->stock_quantity));
+        return max(0, min($quantity, $variant->stock_quantity));
     }
 }

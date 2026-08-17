@@ -355,6 +355,46 @@ class CartTest extends TestCase
             ->assertJsonPath('data.item_count', 4);
     }
 
+    public function test_merging_drops_a_line_that_sold_out(): void
+    {
+        $user = $this->customer();
+        $variant = $this->variant(stock: 5);
+
+        $token = $this->postJson('/api/v1/cart', ['variant_id' => $variant->id, 'quantity' => 3])
+            ->json('cart_token');
+
+        $variant->update(['stock_quantity' => 0]);
+
+        // A floor of 1 here would resurrect the line as a phantom quantity of
+        // one that checkout then refuses.
+        $this->actingAs($user, 'sanctum')
+            ->withHeader('X-Cart-Token', $token)
+            ->postJson('/api/v1/cart/merge')
+            ->assertOk()
+            ->assertJsonPath('data.line_count', 0)
+            ->assertJsonPath('data.item_count', 0);
+
+        $this->assertDatabaseCount('cart_items', 0);
+    }
+
+    public function test_merging_keeps_a_backorderable_line_that_is_out_of_stock(): void
+    {
+        $user = $this->customer();
+        $product = Product::factory()->create();
+        $variant = ProductVariant::factory()->forProduct($product)->backorderable()
+            ->create(['stock_quantity' => 0, 'price' => 25]);
+
+        $token = $this->postJson('/api/v1/cart', ['variant_id' => $variant->id, 'quantity' => 2])
+            ->json('cart_token');
+
+        // Backorder means zero stock is not a reason to drop it.
+        $this->actingAs($user, 'sanctum')
+            ->withHeader('X-Cart-Token', $token)
+            ->postJson('/api/v1/cart/merge')
+            ->assertOk()
+            ->assertJsonPath('data.item_count', 2);
+    }
+
     public function test_merging_without_a_token_is_a_no_op(): void
     {
         $user = $this->customer();
