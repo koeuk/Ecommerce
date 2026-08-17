@@ -2,8 +2,8 @@
 
 **Project:** Computer, electronics accessories & watch store — **personal, single shop**
 **Stack:** Laravel 12.66 · PHP 8.4 · Inertia 2 · Vue 3 · Tailwind + Flowbite · Vite · MySQL
-**Status:** Phases 1–6 complete · 41 tables · 30 models · **197 tests passing**
-**Milestone reached:** a real order can be placed end to end (COD).
+**Status:** Phases 1–6, 8, 9 complete · 41 tables · 30 models · **229 tests passing**
+**Milestone reached:** an order can be placed, fulfilled and invoiced end to end (COD).
 
 > ### 🔀 Architecture: split frontend
 >
@@ -42,8 +42,8 @@
 | ✅ | [5](#-phase-5--cart-api) | Cart API | Guest + user carts that survive login |
 | ✅ | [6](#-phase-6--checkout--orders-cod) | Checkout & Orders (COD) | ✅ **First real order can be placed** |
 | ⬜ | [7](#-phase-7--payments) | Payments *(optional)* | One gateway live — COD-only is viable |
-| 🔄 | [8](#-phase-8--order-management-admin) | Order Management Admin | You can fulfil orders end to end |
-| ⬜ | [9](#-phase-9--customer-account-api) | Customer Account API | Order history, addresses, wishlist |
+| ✅ | [8](#-phase-8--order-management-admin) | Order Management Admin | You can fulfil orders end to end |
+| ✅ | [9](#-phase-9--customer-account-api) | Customer Account API | Order history, addresses, wishlist |
 | ⬜ | [10](#-phase-10--polish) | Polish | SEO, performance, security, backups |
 
 **Legend:** ✅ done · 🔄 partial · ⬜ not started · `[~]` skipped deliberately
@@ -431,9 +431,9 @@ correct total.
 
 ---
 
-# 🔄 Phase 8 — Order Management Admin
+# ✅ Phase 8 — Order Management Admin
 
-### 🔄 PARTLY DONE — *dashboard ✅ built early · orders, invoices, emails outstanding*
+### ✔️ DONE — *18 tests · only the deploy-time config remains*
 
 > **Goal:** you can fulfil orders end to end.
 
@@ -441,10 +441,13 @@ correct total.
 
 > This phase stays **Inertia + Vue** — it lives in the admin panel, not the storefront.
 
-- [ ] **Orders admin** — list with status/date filters; detail page (items, customer, address,
-      timeline); status transitions
-- [ ] **Invoices + delivery notes** — `barryvdh/laravel-dompdf`
-- [ ] **Emails** — order confirmation, shipped, delivered
+- [x] **Orders admin** — list with status/date/search filters; detail page (items, customer,
+      address, timeline); status transitions driven by `OrderStatus::allowedTransitions()`, so
+      the UI renders only the buttons the state machine permits
+- [x] **Invoices + delivery notes** — `barryvdh/laravel-dompdf`. Same document, prices switched
+      off for the note, since it travels with the goods
+- [x] **Emails** — placed, shipped, delivered, cancelled. One `OrderMail` for all four; a guest
+      without an email address is not an error
 - [ ] ⚠️ **Switch `QUEUE_CONNECTION` off `sync`** — every email currently blocks the request.
       Tables already exist; it's a one-line `.env` change *(still `sync` as of today)*
 - [ ] Configure real SMTP (`MAIL_HOST=mailpit` is dev-only — *still mailpit*)
@@ -470,17 +473,19 @@ emailed at each step and a printable invoice.
 
 ---
 
-# ⬜ Phase 9 — Customer Account API
+# ✅ Phase 9 — Customer Account API
 
-### ⬜ NOT STARTED — *blocked on the Phase 4 customer auth decision*
+### ✔️ DONE — *14 tests · addresses, history, profile, wishlist*
 
 > **Goal:** returning customers can see their history.
 
 > Sanctum-authenticated endpoints, not Inertia pages. Depends on the customer auth model
 > settled in [Phase 4](#-phase-4--storefront-catalog-api).
 
-- [ ] **Account** — `GET /orders`, `GET /orders/{number}`, addresses CRUD, profile + password
-- [ ] **Wishlist** — cheap to add, genuinely used. `wishlists` table and model already exist
+- [x] **Account** — `GET account/orders`, addresses CRUD, profile + password. Changing a
+      password revokes every *other* device's token but keeps the current one
+- [x] **Wishlist** — `GET/POST/DELETE wishlist`. Adding twice is a no-op, and only published
+      products come back
 
 ### Skip for now
 
@@ -831,28 +836,27 @@ rate change never rewrites historical order totals.
 
 ### ✅ Closed
 
-| Item | From | How |
-|---|---|---|
-| Product / Variant / Order factories | 1.7 | 7 factories with states |
-| No catalog-admin tests | 3 | 53 tests |
-| No policies | 2 → 3 | 4 policies, auto-discovered, 11 tests |
-| Customer auth endpoints | 4 | Sanctum register/login/logout, 13 tests |
-| Search was an unindexed, case-sensitive `LIKE` | 4 | FULLTEXT over a generated column, 10 tests |
-| Catalog endpoint tests | 4 | 20 tests — filtering, sorting, pagination, locale |
-| Category tree · filter metadata · home feed · settings | 4 | `StorefrontController`, 4 endpoints |
-| **Guest cart identity** | 5 | **Settled:** server-minted token echoed in `X-Cart-Token` |
-| Cart + merge on login | 5 | `CartService`, 6 endpoints, 22 tests |
-| Checkout, pricing, inventory, order numbers | 6 | 4 services, 21 tests |
-| Address book | 6 | 4 endpoints, 8 tests |
+Everything from the original gap list, plus Phases 4–6, 8 and 9:
+
+| Area | Delivered |
+|---|---|
+| Factories · catalog-admin tests · policies | 7 factories, 53 tests, 4 policies |
+| Storefront catalog API | filters, sorting, locale, home feed, tree, settings — 20 tests |
+| Search | FULLTEXT over a generated column, case-insensitive — 10 tests |
+| Customer auth | Sanctum register/login/logout, admins refused — 13 tests |
+| **Guest cart identity** | **Settled:** server-minted token echoed in `X-Cart-Token` |
+| Cart + merge on login | `CartService`, 6 endpoints — 22 tests |
+| Checkout (COD) | 4 services, server-authoritative money — 21 tests |
+| Order admin | list, detail, transitions, invoices, emails — 18 tests |
+| Customer account | history, addresses, profile, wishlist — 22 tests |
 
 ### ⬜ Still open
 
 | # | Item | From | Why it matters |
 |---|---|---|---|
-| 1 | **Orders admin, invoices, emails** | 8 | You can take an order but not yet fulfil it from the panel |
-| 2 | **Customer account API** — order history, wishlist | 9 | Addresses are done; history and wishlist are not |
+| 1 | **Phase 10 — Polish** | 10 | SEO inputs, caching, eager-loading, backups, feature-test breadth |
+| 2 | **No image resizing** | 3 → 10 | Full-size originals are served; the biggest payload win available |
 | 3 | **Payments** | 7 | Optional — COD-only is a viable launch |
-| 4 | **No image resizing** | 3 → 10 | Full-size originals are served; the biggest payload win available |
-| 5 | **`QUEUE_CONNECTION=sync`, mailpit, `APP_DEBUG=true`, CORS** | 8, 10 | Config, not code — all four block launch, and none should be flipped before deploy |
+| 4 | **`QUEUE_CONNECTION=sync`, mailpit, `APP_DEBUG=true`, CORS** | 8, 10 | Config, not code. Order emails are already `ShouldQueue`, so moving off `sync` is the one-line change that makes them asynchronous |
 
-*Last updated: 2026-08-17 — reconciled against the codebase, then updated as Phases 4–6 were built.*
+*Last updated: 2026-08-17 — reconciled against the codebase, then updated as Phases 4–6, 8 and 9 were built.*
