@@ -92,7 +92,8 @@ class InventoryController extends Controller
                 'type' => $delta >= 0 ? 'in' : 'out',
                 'quantity' => $delta,
                 'stock_after' => $after,
-                'reason' => $data['reason'] ?: 'Manual adjustment',
+                // `reason` is nullable, so it may be absent from the validated array.
+                'reason' => ($data['reason'] ?? null) ?: 'Manual adjustment',
                 'created_by' => auth()->id(),
             ]);
 

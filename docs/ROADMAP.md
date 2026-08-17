@@ -77,6 +77,8 @@ Everything below assumes variants and specs get modelled properly in Phase 1.
 
 # ✅ Phase 1 — Cleanup & Foundation
 
+### ✔️ DONE — *except the Product/Variant/Order factories in [1.7](#-17-seeders--factories)*
+
 > **Goal:** a clean codebase with a correct schema and working models.
 > Nothing user-facing ships in this phase.
 
@@ -125,9 +127,11 @@ costs nothing.
 - **All Breeze auth** — controllers, form requests, `Pages/Auth/*.vue`, `Layouts/`, `Components/`
 - **`Sidebar.vue` + `Navbar.vue`** — 824 lines of working Flowbite markup. Keep it; just swap
   `href="#"` for Ziggy `route()` calls in Phase 3
-- **`HandleInertiaRequests`** — extend it later to share cart count, auth user, store settings
+- **`HandleInertiaRequests`** — shares the authenticated admin and flash messages.
+  ~~cart count~~ 🔀 the cart is API-side now, so nothing storefront-facing goes through here
 - Vite / Tailwind / PostCSS config
-- `Welcome.vue` and `Dashboard.vue` — become the storefront home and account dashboard
+- ~~`Welcome.vue` and `Dashboard.vue` become the storefront home and account dashboard~~ —
+  🔀 obsolete. `/` redirects to the admin login; the storefront home lives in the frontend project
 
 > **Already fine, no action:** `.env` is correctly gitignored and untracked ✓ ·
 > `Kernel.php:5` properly imports the `redirectAdmin` middleware ✓
@@ -166,6 +170,8 @@ resolves in `tinker`. *(Both hold today — only the factories remain.)*
 
 # ✅ Phase 2 — Roles, Permissions & Admin Auth
 
+### ✔️ DONE — *verified by 14 tests · policies still outstanding*
+
 > **Goal:** admin can actually log in. Right now the route points at a missing method.
 
 - [x] Install `spatie/laravel-permission`
@@ -191,6 +197,8 @@ non-admins rather than leaving them logged in.
 ---
 
 # ✅ Phase 3 — Catalog Admin
+
+### ✔️ DONE — *built and working · 0 tests · media optimisation deferred*
 
 > **Goal:** you can manage the products you actually sell. The biggest phase — budget accordingly.
 
@@ -250,6 +258,8 @@ are the two knowingly-deferred pieces above.
 ---
 
 # 🔄 Phase 4 — Storefront Catalog API
+
+### 🔨 IN PROGRESS — *public catalog endpoints live · 7 items left*
 
 > **Goal:** everything a customer needs to browse and evaluate products, exposed as JSON.
 > No cart yet.
@@ -319,6 +329,8 @@ returns the right page, and the detail response carries everything a variant pic
 
 # ⬜ Phase 5 — Cart API
 
+### ⬜ NOT STARTED — *schema and model accessors already in place*
+
 > **Goal:** guest and logged-in carts that behave correctly across login.
 
 - [ ] **`CartService`** — add / update / remove, and **merge guest cart into user cart on login**
@@ -343,6 +355,8 @@ returns the right page, and the detail response carries everything a variant pic
 ---
 
 # ⬜ Phase 6 — Checkout & Orders (COD)
+
+### ⬜ NOT STARTED — *the milestone phase · shipping helpers already written*
 
 > **Goal:** **the first real order can be placed.** Cash on Delivery only — no gateway
 > integration needed, which unblocks the entire flow.
@@ -378,6 +392,8 @@ correct total.
 
 # ⬜ Phase 7 — Payments
 
+### ⬜ NOT STARTED — *optional · COD-only is a viable launch*
+
 > **Goal:** take money online. **Optional** — plenty of Cambodian shops run COD-only indefinitely.
 
 - [ ] Abstract a `PaymentGateway` interface so new gateways never touch checkout code
@@ -396,6 +412,8 @@ correct total.
 ---
 
 # ⬜ Phase 8 — Order Management Admin
+
+### 🔄 PARTLY DONE — *dashboard ✅ built early · orders, invoices, emails outstanding*
 
 > **Goal:** you can fulfil orders end to end.
 
@@ -434,6 +452,8 @@ emailed at each step and a printable invoice.
 
 # ⬜ Phase 9 — Customer Account API
 
+### ⬜ NOT STARTED — *blocked on the Phase 4 customer auth decision*
+
 > **Goal:** returning customers can see their history.
 
 > Sanctum-authenticated endpoints, not Inertia pages. Depends on the customer auth model
@@ -452,6 +472,8 @@ emailed at each step and a printable invoice.
 ---
 
 # ⬜ Phase 10 — Polish
+
+### ⬜ NOT STARTED — *absorbs the deferred image and search work*
 
 > **Goal:** make it fast and findable. Do these before launch, not after.
 
