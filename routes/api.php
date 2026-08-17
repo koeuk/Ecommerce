@@ -1,9 +1,9 @@
 <?php
 
+use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\BrandController;
 use App\Http\Controllers\Api\V1\CategoryController;
 use App\Http\Controllers\Api\V1\ProductController;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -32,8 +32,16 @@ Route::prefix('v1')->middleware('api.locale')->group(function () {
     Route::get('brands', [BrandController::class, 'index']);
     Route::get('brands/{slug}', [BrandController::class, 'show']);
 
+    // Customer auth — Sanctum tokens. Throttled, since these take credentials.
+    Route::middleware('throttle:customer-auth')->group(function () {
+        Route::post('register', [AuthController::class, 'register']);
+        Route::post('login', [AuthController::class, 'login']);
+    });
+
     // Authenticated customer
     Route::middleware('auth:sanctum')->group(function () {
-        Route::get('me', fn (Request $request) => $request->user());
+        Route::get('me', [AuthController::class, 'me']);
+        Route::post('logout', [AuthController::class, 'logout']);
+        Route::post('logout-all', [AuthController::class, 'logoutAll']);
     });
 });

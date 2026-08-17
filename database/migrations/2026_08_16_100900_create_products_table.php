@@ -55,6 +55,18 @@ return new class extends Migration
             $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->foreignId('updated_by')->nullable()->constrained('users')->nullOnDelete();
 
+            // MySQL cannot FULLTEXT-index a JSON column, so the searchable
+            // locales and the SKU are flattened into one generated column.
+            // Without it, searching means `LIKE '%term%'` — a leading
+            // wildcard no index can serve.
+            $table->text('search_text')->storedAs(<<<'SQL'
+                CONCAT_WS(' ',
+                    JSON_UNQUOTE(JSON_EXTRACT(title, '$.en')),
+                    JSON_UNQUOTE(JSON_EXTRACT(title, '$.km')),
+                    sku
+                )
+            SQL);
+
             $table->timestamps();
             $table->softDeletes();
 
@@ -63,6 +75,7 @@ return new class extends Migration
             $table->index(['brand_id', 'status']);
             $table->index('price');
             $table->index('release_year');
+            $table->fullText('search_text');
         });
     }
 

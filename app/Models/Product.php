@@ -132,14 +132,49 @@ class Product extends Model
         return $query->where('stock_quantity', '>', 0);
     }
 
+    /**
+     * FULLTEXT over the generated `search_text` column (title in every locale
+     * plus the SKU). Falls back to LIKE for terms MySQL will not tokenise —
+     * anything under its minimum token length — and on drivers without the
+     * index, which keeps the test suite portable.
+     */
     public function scopeSearch(Builder $query, ?string $term): Builder
     {
-        if (blank($term)) {
+        $term = trim((string) $term);
+
+        if ($term === '') {
             return $query;
         }
 
+        if ($query->getConnection()->getDriverName() !== 'mysql') {
+            return $this->likeSearch($query, $term);
+        }
+
+        // Boolean-mode operators would otherwise change what was asked for:
+        // the hyphen in "LAP-001" reads as "exclude 001".
+        $tokens = collect(preg_split('/\s+/', (string) preg_replace('/[+\-><()~*"@]+/', ' ', $term)))
+            ->filter(fn (string $token) => mb_strlen($token) >= 3)
+            ->values();
+
+        if ($tokens->isEmpty()) {
+            return $this->likeSearch($query, $term);
+        }
+
+        // Each token required, with a trailing wildcard so prefixes match.
+        $boolean = $tokens->map(fn (string $token) => '+'.$token.'*')->implode(' ');
+
+        return $query->whereFullText('search_text', $boolean, ['mode' => 'boolean']);
+    }
+
+    /**
+     * A JSON column compares under a binary collation, so a plain
+     * `title LIKE '%as%'` would never match "Asus". Casting to CHAR brings
+     * the column back under the case-insensitive collation.
+     */
+    private function likeSearch(Builder $query, string $term): Builder
+    {
         return $query->where(function (Builder $q) use ($term) {
-            $q->where('title', 'like', "%{$term}%")
+            $q->whereRaw('CAST(title AS CHAR) LIKE ?', ["%{$term}%"])
                 ->orWhere('sku', 'like', "%{$term}%");
         });
     }

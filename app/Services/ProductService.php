@@ -224,7 +224,11 @@ class ProductService
     public function duplicate(Product $product): Product
     {
         return DB::transaction(function () use ($product) {
-            $copy = $product->replicate(['slug', 'sku', 'views_count', 'rating_avg', 'rating_count']);
+            // search_text is a generated column — MySQL rejects any attempt
+            // to write it, so it must not be carried into the copy.
+            $copy = $product->replicate([
+                'slug', 'sku', 'views_count', 'rating_avg', 'rating_count', 'search_text',
+            ]);
 
             $copy->title = collect($product->getTranslations('title'))
                 ->map(fn ($value) => $value.' (copy)')

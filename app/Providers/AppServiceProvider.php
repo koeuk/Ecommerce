@@ -31,5 +31,12 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(5)
                 ->by(strtolower((string) $request->input('email')).'|'.$request->ip());
         });
+
+        // Storefront register/login. Keyed on email plus IP so one attacker
+        // cannot lock a legitimate customer out by guessing their address.
+        RateLimiter::for('customer-auth', function (Request $request) {
+            return Limit::perMinute(10)
+                ->by(strtolower((string) $request->input('email')).'|'.$request->ip());
+        });
     }
 }
