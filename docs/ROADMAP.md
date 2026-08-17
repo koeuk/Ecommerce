@@ -2,7 +2,7 @@
 
 **Project:** Computer, electronics accessories & watch store — **personal, single shop**
 **Stack:** Laravel 12.66 · PHP 8.4 · Inertia 2 · Vue 3 · Tailwind + Flowbite · Vite · MySQL
-**Status:** Phases 1–3 complete · 41 tables · 30 models · 39 tests passing · next up **Phase 4**
+**Status:** Phases 1–3 complete · Phase 4 underway · 41 tables · 30 models · **126 tests passing**
 
 > ### 🔀 Architecture: split frontend
 >
@@ -77,7 +77,7 @@ Everything below assumes variants and specs get modelled properly in Phase 1.
 
 # ✅ Phase 1 — Cleanup & Foundation
 
-### ✔️ DONE — *except the Product/Variant/Order factories in [1.7](#-17-seeders--factories)*
+### ✔️ DONE
 
 > **Goal:** a clean codebase with a correct schema and working models.
 > Nothing user-facing ships in this phase.
@@ -151,7 +151,7 @@ costs nothing.
 - [x] **Enums** — `ProductStatus`, `OrderStatus`, `PaymentStatus`, `FulfillmentStatus`, `Role`.
       `OrderStatus` encodes its own legal transitions and stock-release rule
 
-### 🔄 1.7 Seeders & factories
+### ✅ 1.7 Seeders & factories
 
 - [x] **RoleSeeder** — 4 roles, 56 permissions
 - [x] **DatabaseSeeder** — 3 sample accounts (admin / manager / customer, password `password`)
@@ -159,18 +159,20 @@ costs nothing.
 - [x] **ReferenceDataSeeder** — currencies, settings, tax rates, shipping zones & methods
 - [x] **CatalogStructureSeeder** — brands, the category tree, attributes & values, tags
 - [x] **ProductSeeder** — products with variants, specs and images
-- [ ] ⚠️ **Factories for Product, ProductVariant, Order** — the one gap left in Phase 1.
-      Seeders cover *looking at* data; factories are what the Phase 3–6 tests need to
-      generate it. Blocks the test work called out in Phase 3
+- [x] **Factories** — `Product`, `ProductVariant`, `Order`, plus `Brand`, `Category`,
+      `Attribute` and `AttributeValue` as their dependencies. Seeders cover *looking at* data;
+      factories are what the tests generate it with. States included: `draft()` / `featured()` /
+      `onSale()` / `outOfStock()` on products, `isDefault()` / `lowStock()` on variants, and
+      `guest()` / `paid()` / `shipped()` / `delivered()` / `withTotals()` on orders
 
-**✅ Done when:** `migrate:fresh --seed` produces a full catalog, and every model relationship
-resolves in `tinker`. *(Both hold today — only the factories remain.)*
+**✅ Done —** `migrate:fresh --seed` produces a full catalog, every model relationship resolves
+in `tinker`, and the factories back 126 passing tests.
 
 ---
 
 # ✅ Phase 2 — Roles, Permissions & Admin Auth
 
-### ✔️ DONE — *verified by 14 tests · policies still outstanding*
+### ✔️ DONE
 
 > **Goal:** admin can actually log in. Right now the route points at a missing method.
 
@@ -182,7 +184,11 @@ resolves in `tinker`. *(Both hold today — only the factories remain.)*
       would put two unrelated concerns in one class. Route bindings ✅
 - [x] Update `AdminMiddleware` to check role, not the boolean; fix the `route('home')` redirect
 - [x] `users` table: add `phone`, `avatar`, `last_login_at`, `is_active`
-- [ ] Policies scaffolded: `ProductPolicy`, `OrderPolicy`, `ReviewPolicy`, `CouponPolicy` — **deferred to Phase 3**, they need the catalog models
+- [x] Policies: `ProductPolicy`, `OrderPolicy`, `ReviewPolicy`, `CouponPolicy` — ✅ **written**,
+      auto-discovered, covered by 11 tests. They add the per-record rules route middleware
+      cannot express: a product referenced by an order line cannot be force-deleted, a paid
+      order cannot be deleted at all, a customer sees only their own orders, a review author
+      may edit only while it is pending, and a redeemed coupon is deactivated rather than deleted
 - [x] Rate-limit the admin login route (5/min per email + IP)
 - [x] Install `spatie/laravel-activitylog` for the admin audit trail
 
@@ -198,7 +204,7 @@ non-admins rather than leaving them logged in.
 
 # ✅ Phase 3 — Catalog Admin
 
-### ✔️ DONE — *built and working · 0 tests · media optimisation deferred*
+### ✔️ DONE — *built, tested (53 tests) · media optimisation deferred to Phase 10*
 
 > **Goal:** you can manage the products you actually sell. The biggest phase — budget accordingly.
 
@@ -227,19 +233,26 @@ Wire the existing Flowbite sidebar links to real routes as you go.
 > `VariantMatrix.vue` and `SpecBuilder.vue` as the two non-trivial components. Product writes go
 > through `ProductService` rather than the controller.
 
-### ⚠️ Outstanding — tests
+### ✅ Tests — 53 covering this phase
 
-Phase 3 shipped without any. All 39 passing tests belong to Phases 1–2 (auth, profile, admin
-auth, roles); **nothing covers the catalog admin.** Needed:
+Phase 3 originally shipped with none. Now covered:
 
-- [ ] Product CRUD, including the variant matrix and spec builder round-tripping correctly
-- [ ] Image upload, reorder, primary-flag and delete
-- [ ] Product duplication — the deep-copy of variants, specs, images and tags
-- [ ] Category tree CRUD, brand CRUD
-- [ ] Inventory adjustment writing a correct `inventory_movements` row
-- [ ] Permission gating — a `staff` user blocked from what only `manager` may do
+- [x] Product CRUD, with the variant matrix and spec builder round-tripping in both locales
+- [x] Image upload, reorder, primary-flag and delete, including primary promotion on delete
+- [x] Product duplication — the deep-copy of variants, specs, images and tags
+- [x] Category tree CRUD, including the cycle guards, and brand CRUD with logo replacement
+- [x] Inventory adjustment writing a correct `inventory_movements` row
+- [x] Permission gating per role
 
-> Depends on the Product/ProductVariant factories still open in [1.7](#-17-seeders--factories).
+> **Two real bugs surfaced by writing these:**
+>
+> 1. **`InventoryController` 500'd whenever no reason was submitted** — `reason` is `nullable`,
+>    so it is simply absent from the validated array, and the controller read `$data['reason']`
+>    directly. Fixed.
+> 2. **Search was case-sensitive** — see [Phase 4](#-phase-4--storefront-catalog-api).
+>
+> A third finding needed no fix: `ProductService` guards against a blank specification key, but
+> `ProductRequest` rejects that row first, so the guard is unreachable over HTTP.
 
 ### Skip for now
 
@@ -259,7 +272,7 @@ are the two knowingly-deferred pieces above.
 
 # 🔄 Phase 4 — Storefront Catalog API
 
-### 🔨 IN PROGRESS — *public catalog endpoints live · 7 items left*
+### 🔨 IN PROGRESS — *catalog + auth endpoints live · 5 items left*
 
 > **Goal:** everything a customer needs to browse and evaluate products, exposed as JSON.
 > No cart yet.
@@ -279,7 +292,8 @@ are the two knowingly-deferred pieces above.
 | `GET products/{slug}` | Eager-loads brand, category, images, specs, active variants + their attribute values; increments `views_count` |
 | `GET categories` · `GET categories/{slug}` | |
 | `GET brands` · `GET brands/{slug}` | |
-| `GET me` | `auth:sanctum` |
+| `POST register` · `POST login` | ✅ Sanctum tokens, throttled 10/min on email + IP |
+| `GET me` · `POST logout` · `POST logout-all` | ✅ `auth:sanctum` |
 
 Sorts: `price`, `created_at`, `rating_avg`, `views_count`, `name`. Includes: `brand`, `category`,
 `images`, `variants`, `specifications`. Pagination is `per_page`, capped at 100, default 24.
@@ -288,6 +302,18 @@ Sorts: `price`, `created_at`, `rating_avg`, `views_count`, `name`. Includes: `br
 `Accept-Language`, so translatable columns serialise in the caller's locale. Payloads are shaped
 by six API Resources (`Product`, `ProductVariant`, `ProductImage`, `ProductSpecification`,
 `Brand`, `Category`).
+
+**Customer auth (settled):** Sanctum personal access tokens, not sessions — the storefront is a
+separate origin. Registration assigns the `customer` role. Admins are **refused** here and must
+use the session-based admin panel, so the two auth models never mix. Deactivated accounts are
+rejected, and a bad password and an unknown email return the same error so the endpoint cannot
+be used to enumerate accounts. 13 tests.
+
+**Search (fixed):** `products.search_text` is a STORED generated column flattening `title.en`,
+`title.km` and `sku`, carrying a FULLTEXT index. `Product::search()` runs boolean-mode
+`MATCH … AGAINST` with each token required and a trailing wildcard, stripping boolean operators
+first — otherwise the hyphen in `LAP-001` reads as "exclude 001". Terms below MySQL's minimum
+token length fall back to a `CAST(title AS CHAR) LIKE` scan. 10 tests.
 
 ### Core — still to build
 
@@ -301,16 +327,9 @@ by six API Resources (`Product`, `ProductVariant`, `ProductImage`, `ProductSpeci
 - [ ] **Related products** on the detail response
 - [ ] **`GET settings`** — shop name, currency + KHR rate, contact details, static-page copy.
       The `settings` table exists and is seeded; nothing reads it yet
-- [ ] ⚠️ **Search is a `LIKE '%term%'`, not FULLTEXT.** `Product::search()` scans `title` and
-      `sku` with leading wildcards, so **no index can be used** — every search is a table scan.
-      `title` is also a translatable JSON column, so the pattern matches raw JSON and hits
-      every locale at once. There are no `fullText()` indexes in any migration. Fine at 50
-      products, the first thing to hurt at 500. Fix: add a FULLTEXT index and switch the scope
-      to `whereFullText`, or promote a plain searchable column
-- [ ] **API tests** — filtering, sorting, pagination, locale negotiation, and 404s for
-      unpublished or missing slugs
-- [ ] **Decide auth model** — Sanctum is installed and `GET me` is gated, but there are no
-      customer register/login endpoints yet. Needed before Phase 5's user carts
+- [ ] **API tests for the catalog endpoints** — filtering, sorting, pagination, locale
+      negotiation, and 404s for unpublished or missing slugs. *(Search and auth are covered;
+      the product/category/brand endpoints themselves are not yet.)*
 
 ### Skip for now
 
@@ -720,7 +739,7 @@ more than the dependency would.
 | Concern | Recommendation | Phase |
 |---|---|---|
 | **Images** | ⚠️ Plain `Storage`, no resizing — full-size originals are served to the storefront. `medialibrary` + `intervention/image` deferred | 3 → 10 |
-| **Search** | ⚠️ Currently `LIKE '%term%'`, unindexed. Move to MySQL FULLTEXT; `laravel/scout` + Meilisearch only if the catalog grows | 4 → 10 |
+| **Search** | ✅ MySQL FULLTEXT over a generated column, with a LIKE fallback for short terms. `laravel/scout` + Meilisearch only if the catalog grows | 4 |
 | **Payments** | Cambodia: ABA PayWay, Bakong KHQR, Wing, plus COD. Stripe/PayPal if selling abroad. Abstract behind a `PaymentGateway` interface | 6–7 |
 | **Currency** | USD + KHR if selling locally — **decide early**, it touches every price column | 1 |
 | **Language** | EN + KM if local — **decide early**, it changes column design (JSON translatable vs separate tables) | 1 |
@@ -733,12 +752,13 @@ more than the dependency would.
 
 ## Application layer conventions
 
-- **Form Requests** — one per create/update action. **5 exist** (`Admin\{Brand,Category,Product}Request`,
-  `Auth\LoginRequest`, `ProfileUpdateRequest`); roughly **25** needed by Phase 6
-- **Policies** — ⚠️ **none written yet.** `ProductPolicy`, `OrderPolicy`, `ReviewPolicy`,
-  `CouponPolicy` were deferred out of Phase 2 into Phase 3, and Phase 3 shipped without them.
-  Authorization currently rides entirely on route-level `can:` middleware, which covers the
-  admin panel but gives you nothing for per-record rules
+- **Form Requests** — one per create/update action. **7 exist**
+  (`Admin\{Brand,Category,Product}Request`, `Api\{Login,Register}Request`, `Auth\LoginRequest`,
+  `ProfileUpdateRequest`); roughly **25** needed by Phase 6
+- **Policies** — ✅ **all four written** and auto-discovered: `ProductPolicy`, `OrderPolicy`,
+  `ReviewPolicy`, `CouponPolicy`. Route-level `can:` middleware still handles the coarse admin
+  gating; the policies carry the per-record rules on top of it. Super admin short-circuits
+  every one of them via `Gate::before`
 - **API Resources** — 6 exist, all catalog-facing. Extend for cart, order and account payloads
 - **Service classes** — keep controllers thin:
 
@@ -808,17 +828,24 @@ rate change never rewrites historical order totals.
 
 ## Where things actually stand
 
-Carried forward from earlier phases, in the order they'll bite:
+### ✅ Closed
+
+| Item | From | How |
+|---|---|---|
+| Product / Variant / Order factories | 1.7 | 7 factories with states; they back all 126 tests |
+| No catalog-admin tests | 3 | 53 tests — products, images, categories, brands, inventory |
+| No policies | 2 → 3 | 4 policies, auto-discovered, 11 tests |
+| Customer auth endpoints | 4 | Sanctum register/login/logout, admins refused, 13 tests |
+| Search was an unindexed, case-sensitive `LIKE` | 4 | FULLTEXT over a generated column, 10 tests |
+
+### ⬜ Still open
 
 | # | Item | From | Why it matters |
 |---|---|---|---|
-| 1 | **Product / ProductVariant / Order factories** | 1.7 | Blocks every test below |
-| 2 | **No catalog-admin tests** | 3 | The largest phase shipped with zero coverage |
-| 3 | **No policies** | 2 → 3 | Route middleware only; no per-record authorization |
-| 4 | **Customer auth endpoints** | 4 | Sanctum installed, but no register/login — blocks Phase 5 user carts |
-| 5 | **Guest cart identity** | 5 | Decide the token scheme before writing `CartService` |
-| 6 | **Search is an unindexed `LIKE`** | 4 | Fine at 50 products, painful at 500 |
-| 7 | **No image resizing** | 3 | Storefront gets full-size originals |
-| 8 | **`QUEUE_CONNECTION=sync`, mailpit, `APP_DEBUG=true`** | 8, 10 | Config, not code — but all three block launch |
+| 1 | **Guest cart identity** | 5 | The API has no session cookie to lean on. Settle the cart-token scheme *before* writing `CartService` — it decides the whole endpoint contract |
+| 2 | **Catalog endpoint tests** | 4 | Search and auth are covered; products/categories/brands are not |
+| 3 | **Category tree · filter metadata · home feed · settings** | 4 | The remaining Phase 4 endpoints |
+| 4 | **No image resizing** | 3 → 10 | Full-size originals are served; the biggest payload win available |
+| 5 | **`QUEUE_CONNECTION=sync`, mailpit, `APP_DEBUG=true`, CORS** | 8, 10 | Config, not code — all four block launch, and none should be flipped before deploy |
 
-*Last updated: 2026-08-17 — reconciled against the codebase after Phase 3.*
+*Last updated: 2026-08-17 — reconciled against the codebase, then updated as each gap closed.*

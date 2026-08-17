@@ -6,8 +6,6 @@ use App\Enums\ProductStatus;
 use App\Enums\Role;
 use App\Models\Attribute;
 use App\Models\AttributeValue;
-use App\Models\Brand;
-use App\Models\Category;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\User;
