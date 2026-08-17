@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\ProductStatus;
 use App\Models\Product;
 use App\Models\ProductImage;
 use App\Models\ProductSpecification;
@@ -235,7 +236,7 @@ class ProductService
                 ->all();
             $copy->slug = null;
             $copy->sku = $product->sku.'-COPY-'.strtoupper(substr(uniqid(), -4));
-            $copy->status = \App\Enums\ProductStatus::Draft;
+            $copy->status = ProductStatus::Draft;
             $copy->views_count = 0;
             $copy->rating_avg = 0;
             $copy->rating_count = 0;

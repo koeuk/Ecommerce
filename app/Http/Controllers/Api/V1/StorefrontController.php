@@ -9,6 +9,7 @@ use App\Models\Brand;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\Setting;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\Cache;
@@ -117,7 +118,7 @@ class StorefrontController extends Controller
         ]);
     }
 
-    /** @param  callable(\Illuminate\Database\Eloquent\Builder): mixed  $apply */
+    /** @param  callable(Builder): mixed  $apply */
     private function feed(callable $apply, int $limit)
     {
         $query = Product::published()->with(['brand', 'primaryImage']);

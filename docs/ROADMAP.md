@@ -2,7 +2,8 @@
 
 **Project:** Computer, electronics accessories & watch store — **personal, single shop**
 **Stack:** Laravel 12.66 · PHP 8.4 · Inertia 2 · Vue 3 · Tailwind + Flowbite · Vite · MySQL
-**Status:** Phases 1–3 complete · Phase 4 underway · 41 tables · 30 models · **126 tests passing**
+**Status:** Phases 1–6 complete · 41 tables · 30 models · **197 tests passing**
+**Milestone reached:** a real order can be placed end to end (COD).
 
 > ### 🔀 Architecture: split frontend
 >
@@ -36,12 +37,12 @@
 |---|---|---|---|
 | ✅ | [1](#-phase-1--cleanup--foundation) | Cleanup & Foundation | Clean codebase, correct schema, full model layer |
 | ✅ | [2](#-phase-2--roles-permissions--admin-auth) | Roles, Permissions & Admin Auth | Admin can log in; `isAdmin` retired |
-| ✅ | [3](#-phase-3--catalog-admin) | Catalog Admin | Products with variants, specs & images manageable — *tests outstanding* |
-| 🔄 | [4](#-phase-4--storefront-catalog-api) | Storefront Catalog API | Customers can browse, filter and view products |
-| ⬜ | [5](#-phase-5--cart-api) | Cart API | Guest + user carts that survive login |
-| ⬜ | [6](#-phase-6--checkout--orders-cod) | Checkout & Orders (COD) | **First real order can be placed** |
+| ✅ | [3](#-phase-3--catalog-admin) | Catalog Admin | Products with variants, specs & images manageable |
+| ✅ | [4](#-phase-4--storefront-catalog-api) | Storefront Catalog API | Customers can browse, filter and view products |
+| ✅ | [5](#-phase-5--cart-api) | Cart API | Guest + user carts that survive login |
+| ✅ | [6](#-phase-6--checkout--orders-cod) | Checkout & Orders (COD) | ✅ **First real order can be placed** |
 | ⬜ | [7](#-phase-7--payments) | Payments *(optional)* | One gateway live — COD-only is viable |
-| ⬜ | [8](#-phase-8--order-management-admin) | Order Management Admin | You can fulfil orders end to end |
+| 🔄 | [8](#-phase-8--order-management-admin) | Order Management Admin | You can fulfil orders end to end |
 | ⬜ | [9](#-phase-9--customer-account-api) | Customer Account API | Order history, addresses, wishlist |
 | ⬜ | [10](#-phase-10--polish) | Polish | SEO, performance, security, backups |
 
@@ -270,9 +271,9 @@ are the two knowingly-deferred pieces above.
 
 ---
 
-# 🔄 Phase 4 — Storefront Catalog API
+# ✅ Phase 4 — Storefront Catalog API
 
-### 🔨 IN PROGRESS — *catalog + auth endpoints live · 5 items left*
+### ✔️ DONE — *20 catalog tests · 13 auth · 10 search*
 
 > **Goal:** everything a customer needs to browse and evaluate products, exposed as JSON.
 > No cart yet.
@@ -346,9 +347,9 @@ returns the right page, and the detail response carries everything a variant pic
 
 ---
 
-# ⬜ Phase 5 — Cart API
+# ✅ Phase 5 — Cart API
 
-### ⬜ NOT STARTED — *schema and model accessors already in place*
+### ✔️ DONE — *22 tests, including the merge-on-login case*
 
 > **Goal:** guest and logged-in carts that behave correctly across login.
 
@@ -373,9 +374,9 @@ returns the right page, and the detail response carries everything a variant pic
 
 ---
 
-# ⬜ Phase 6 — Checkout & Orders (COD)
+# ✅ Phase 6 — Checkout & Orders (COD)
 
-### ⬜ NOT STARTED — *the milestone phase · shipping helpers already written*
+### ✔️ DONE — *the milestone · 21 checkout tests + 8 address book*
 
 > **Goal:** **the first real order can be placed.** Cash on Delivery only — no gateway
 > integration needed, which unblocks the entire flow.
@@ -430,7 +431,7 @@ correct total.
 
 ---
 
-# ⬜ Phase 8 — Order Management Admin
+# 🔄 Phase 8 — Order Management Admin
 
 ### 🔄 PARTLY DONE — *dashboard ✅ built early · orders, invoices, emails outstanding*
 
@@ -832,20 +833,26 @@ rate change never rewrites historical order totals.
 
 | Item | From | How |
 |---|---|---|
-| Product / Variant / Order factories | 1.7 | 7 factories with states; they back all 126 tests |
-| No catalog-admin tests | 3 | 53 tests — products, images, categories, brands, inventory |
+| Product / Variant / Order factories | 1.7 | 7 factories with states |
+| No catalog-admin tests | 3 | 53 tests |
 | No policies | 2 → 3 | 4 policies, auto-discovered, 11 tests |
-| Customer auth endpoints | 4 | Sanctum register/login/logout, admins refused, 13 tests |
+| Customer auth endpoints | 4 | Sanctum register/login/logout, 13 tests |
 | Search was an unindexed, case-sensitive `LIKE` | 4 | FULLTEXT over a generated column, 10 tests |
+| Catalog endpoint tests | 4 | 20 tests — filtering, sorting, pagination, locale |
+| Category tree · filter metadata · home feed · settings | 4 | `StorefrontController`, 4 endpoints |
+| **Guest cart identity** | 5 | **Settled:** server-minted token echoed in `X-Cart-Token` |
+| Cart + merge on login | 5 | `CartService`, 6 endpoints, 22 tests |
+| Checkout, pricing, inventory, order numbers | 6 | 4 services, 21 tests |
+| Address book | 6 | 4 endpoints, 8 tests |
 
 ### ⬜ Still open
 
 | # | Item | From | Why it matters |
 |---|---|---|---|
-| 1 | **Guest cart identity** | 5 | The API has no session cookie to lean on. Settle the cart-token scheme *before* writing `CartService` — it decides the whole endpoint contract |
-| 2 | **Catalog endpoint tests** | 4 | Search and auth are covered; products/categories/brands are not |
-| 3 | **Category tree · filter metadata · home feed · settings** | 4 | The remaining Phase 4 endpoints |
+| 1 | **Orders admin, invoices, emails** | 8 | You can take an order but not yet fulfil it from the panel |
+| 2 | **Customer account API** — order history, wishlist | 9 | Addresses are done; history and wishlist are not |
+| 3 | **Payments** | 7 | Optional — COD-only is a viable launch |
 | 4 | **No image resizing** | 3 → 10 | Full-size originals are served; the biggest payload win available |
 | 5 | **`QUEUE_CONNECTION=sync`, mailpit, `APP_DEBUG=true`, CORS** | 8, 10 | Config, not code — all four block launch, and none should be flipped before deploy |
 
-*Last updated: 2026-08-17 — reconciled against the codebase, then updated as each gap closed.*
+*Last updated: 2026-08-17 — reconciled against the codebase, then updated as Phases 4–6 were built.*

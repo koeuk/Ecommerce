@@ -266,6 +266,6 @@ class CatalogApiTest extends TestCase
             ->assertOk()
             ->assertJsonCount(1, 'data.brands')
             ->assertJsonPath('data.brands.0.slug', $asus->slug)
-            ->assertJsonPath("data.price.min", 900);
+            ->assertJsonPath('data.price.min', 900);
     }
 }
