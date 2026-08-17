@@ -2,8 +2,11 @@
 
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\BrandController;
+use App\Http\Controllers\Api\V1\CartController;
 use App\Http\Controllers\Api\V1\CategoryController;
+use App\Http\Controllers\Api\V1\CheckoutController;
 use App\Http\Controllers\Api\V1\ProductController;
+use App\Http\Controllers\Api\V1\StorefrontController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -22,6 +25,12 @@ use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->middleware('api.locale')->group(function () {
 
+    // Storefront chrome — home feed, navigation, settings, filter metadata
+    Route::get('home', [StorefrontController::class, 'home']);
+    Route::get('categories-tree', [StorefrontController::class, 'categoryTree']);
+    Route::get('settings', [StorefrontController::class, 'settings']);
+    Route::get('filters', [StorefrontController::class, 'filters']);
+
     // Public catalog
     Route::get('products', [ProductController::class, 'index']);
     Route::get('products/{slug}', [ProductController::class, 'show']);
@@ -31,6 +40,24 @@ Route::prefix('v1')->middleware('api.locale')->group(function () {
 
     Route::get('brands', [BrandController::class, 'index']);
     Route::get('brands/{slug}', [BrandController::class, 'show']);
+
+    /*
+     * Cart — works for guests and signed-in customers alike.
+     * Guests carry an `X-Cart-Token` header; the server mints one on the
+     * first write and returns it on the response.
+     */
+    Route::get('cart', [CartController::class, 'show']);
+    Route::post('cart', [CartController::class, 'store']);
+    Route::patch('cart/{item}', [CartController::class, 'update']);
+    Route::delete('cart/{item}', [CartController::class, 'destroy']);
+    Route::delete('cart', [CartController::class, 'clear']);
+
+    Route::post('cart/merge', [CartController::class, 'merge'])->middleware('auth:sanctum');
+
+    // Checkout — COD. Guests and signed-in customers both.
+    Route::post('checkout/quote', [CheckoutController::class, 'quote']);
+    Route::post('checkout', [CheckoutController::class, 'store'])->middleware('throttle:checkout');
+    Route::get('orders/{number}', [CheckoutController::class, 'track']);
 
     // Customer auth — Sanctum tokens. Throttled, since these take credentials.
     Route::middleware('throttle:customer-auth')->group(function () {

@@ -20,7 +20,11 @@ class CategoryResource extends JsonResource
             'icon' => $this->icon,
             'is_featured' => $this->is_featured,
             'products_count' => $this->whenCounted('products'),
-            'children' => self::collection($this->whenLoaded('children')),
+            // `descendants` is the recursive form of `children`, so whichever
+            // the caller eager-loaded is emitted under the same key.
+            'children' => $this->relationLoaded('descendants')
+                ? self::collection($this->descendants)
+                : self::collection($this->whenLoaded('children')),
             'parent' => new self($this->whenLoaded('parent')),
         ];
     }

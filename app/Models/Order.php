@@ -26,7 +26,7 @@ class Order extends Model
         'coupon_id', 'shipping_method_id',
         'shipping_address', 'billing_address',
         'customer_note', 'admin_note',
-        'placed_at', 'paid_at', 'shipped_at', 'delivered_at', 'cancelled_at',
+        'placed_at', 'paid_at', 'shipped_at', 'delivered_at', 'cancelled_at', 'stock_released_at',
         'created_by', 'updated_by',
     ];
 
@@ -49,6 +49,7 @@ class Order extends Model
             'shipped_at' => 'datetime',
             'delivered_at' => 'datetime',
             'cancelled_at' => 'datetime',
+            'stock_released_at' => 'datetime',
         ];
     }
 

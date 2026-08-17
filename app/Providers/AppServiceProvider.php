@@ -32,6 +32,11 @@ class AppServiceProvider extends ServiceProvider
                 ->by(strtolower((string) $request->input('email')).'|'.$request->ip());
         });
 
+        // Checkout is expensive and writes stock, so it gets its own limit.
+        RateLimiter::for('checkout', function (Request $request) {
+            return Limit::perMinute(10)->by($request->user()?->id ?: $request->ip());
+        });
+
         // Storefront register/login. Keyed on email plus IP so one attacker
         // cannot lock a legitimate customer out by guessing their address.
         RateLimiter::for('customer-auth', function (Request $request) {

@@ -52,6 +52,10 @@ return new class extends Migration
             $table->timestamp('delivered_at')->nullable();
             $table->timestamp('cancelled_at')->nullable();
 
+            // Set once stock has gone back to inventory, so a second cancel
+            // or refund cannot restock the same order twice.
+            $table->timestamp('stock_released_at')->nullable();
+
             $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->foreignId('updated_by')->nullable()->constrained('users')->nullOnDelete();
 

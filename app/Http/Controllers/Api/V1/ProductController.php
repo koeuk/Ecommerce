@@ -83,6 +83,28 @@ class ProductController extends Controller
 
         $product->increment('views_count');
 
-        return new ProductResource($product);
+        return (new ProductResource($product))
+            ->additional(['meta' => ['related' => $this->related($product)]]);
+    }
+
+    /**
+     * Same category first, falling back to the same brand — enough to fill a
+     * "you might also like" strip without a recommendation engine.
+     */
+    private function related(Product $product): AnonymousResourceCollection
+    {
+        $related = Product::published()
+            ->whereKeyNot($product->id)
+            ->when(
+                $product->category_id,
+                fn ($q) => $q->where('category_id', $product->category_id),
+                fn ($q) => $q->where('brand_id', $product->brand_id)
+            )
+            ->with(['brand', 'primaryImage'])
+            ->orderByDesc('views_count')
+            ->limit(8)
+            ->get();
+
+        return ProductResource::collection($related);
     }
 }
