@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\Admin\BrandController;
 use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\InventoryController;
+use App\Http\Controllers\Admin\OrderController;
 use App\Http\Controllers\Admin\ProductController;
 use Illuminate\Support\Facades\Route;
 
@@ -82,6 +83,18 @@ Route::middleware('can:update product')->group(function () {
 Route::delete('products/{product:id}', [ProductController::class, 'destroy'])
     ->middleware('can:delete product')
     ->name('products.destroy');
+
+// Orders
+Route::middleware('can:view order')->group(function () {
+    Route::get('orders', [OrderController::class, 'index'])->name('orders.index');
+    Route::get('orders/{order:id}', [OrderController::class, 'show'])->name('orders.show');
+});
+
+Route::middleware('can:update order')->group(function () {
+    Route::put('orders/{order:id}/status', [OrderController::class, 'updateStatus'])->name('orders.status');
+    Route::put('orders/{order:id}/paid', [OrderController::class, 'markPaid'])->name('orders.paid');
+    Route::put('orders/{order:id}/note', [OrderController::class, 'updateNote'])->name('orders.note');
+});
 
 // Inventory
 Route::middleware('can:view inventory')->group(function () {

@@ -5,12 +5,14 @@ namespace App\Services;
 use App\Enums\FulfillmentStatus;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
+use App\Mail\OrderMail;
 use App\Models\Coupon;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\ProductVariant;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -111,7 +113,11 @@ class CheckoutService
             // The cart has become the order.
             $this->cart->clear($user, $cartToken);
 
-            return $order->fresh(['items']);
+            $order = $order->fresh(['items']);
+
+            $this->notify($order, 'placed');
+
+            return $order;
         });
     }
 
@@ -152,6 +158,19 @@ class CheckoutService
                 ]);
             }
         }
+    }
+
+    /**
+     * Guests may checkout without an email, so there is not always somewhere
+     * to send this — a missing address is not an error.
+     */
+    private function notify(Order $order, string $stage): void
+    {
+        if (blank($order->customer_email)) {
+            return;
+        }
+
+        Mail::to($order->customer_email)->send(new OrderMail($order, $stage));
     }
 
     private function recordCouponUsage(Order $order, ?User $user): void
