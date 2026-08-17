@@ -2,7 +2,18 @@
 
 **Project:** Computer, electronics accessories & watch store — **personal, single shop**
 **Stack:** Laravel 12.66 · PHP 8.4 · Inertia 2 · Vue 3 · Tailwind + Flowbite · Vite · MySQL
-**Status:** Phases 1–2 complete · 41 tables · 26 models · 39 tests passing · next up **Phase 3**
+**Status:** Phases 1–3 complete · 41 tables · 30 models · 39 tests passing · next up **Phase 4**
+
+> ### 🔀 Architecture: split frontend
+>
+> **The admin panel is Inertia + Vue. The storefront is a separate API client.**
+> `routes/web.php` serves the admin panel only — hitting `/` redirects to the admin login.
+> Customers are served by a versioned JSON API under `routes/api.php` (`/api/v1/*`), built on
+> `spatie/laravel-query-builder` with API Resources for payload shaping.
+>
+> This is a change from the original plan, which put the storefront in the same Inertia app.
+> Phases 4–9 below are written against the API-driven design. Phase 8 (order admin) stays
+> Inertia, since it lives in the admin panel.
 
 > ### 📐 Scale: personal single shop
 >
@@ -23,15 +34,15 @@
 
 | | Phase | Title | Outcome |
 |---|---|---|---|
-| ✅ | [1](#-phase-1--cleanup--foundation) | Cleanup & Foundation | Clean codebase, correct schema — *models/seeders outstanding* |
+| ✅ | [1](#-phase-1--cleanup--foundation) | Cleanup & Foundation | Clean codebase, correct schema, full model layer |
 | ✅ | [2](#-phase-2--roles-permissions--admin-auth) | Roles, Permissions & Admin Auth | Admin can log in; `isAdmin` retired |
-| ⬜ | [3](#-phase-3--catalog-admin) | Catalog Admin | Products with variants, specs & images manageable |
-| ⬜ | [4](#-phase-4--storefront-catalog) | Storefront Catalog | Customers can browse, filter and view products |
-| ⬜ | [5](#-phase-5--cart) | Cart | Guest + user carts that survive login |
+| ✅ | [3](#-phase-3--catalog-admin) | Catalog Admin | Products with variants, specs & images manageable — *tests outstanding* |
+| 🔄 | [4](#-phase-4--storefront-catalog-api) | Storefront Catalog API | Customers can browse, filter and view products |
+| ⬜ | [5](#-phase-5--cart-api) | Cart API | Guest + user carts that survive login |
 | ⬜ | [6](#-phase-6--checkout--orders-cod) | Checkout & Orders (COD) | **First real order can be placed** |
 | ⬜ | [7](#-phase-7--payments) | Payments *(optional)* | One gateway live — COD-only is viable |
 | ⬜ | [8](#-phase-8--order-management-admin) | Order Management Admin | You can fulfil orders end to end |
-| ⬜ | [9](#-phase-9--customer-account) | Customer Account | Order history, addresses, wishlist |
+| ⬜ | [9](#-phase-9--customer-account-api) | Customer Account API | Order history, addresses, wishlist |
 | ⬜ | [10](#-phase-10--polish) | Polish | SEO, performance, security, backups |
 
 **Legend:** ✅ done · 🔄 partial · ⬜ not started · `[~]` skipped deliberately
@@ -45,6 +56,7 @@ Each unbuilt phase lists **Core** (build it) and **Skip for now** (with reasons)
 - [Appendix C — Packages](#appendix-c--packages)
 - [Appendix D — Cross-cutting concerns](#appendix-d--cross-cutting-concerns)
 - [Appendix E — Decisions (settled)](#appendix-e--decisions-settled)
+- [**Where things actually stand**](#where-things-actually-stand) — the carried-forward gaps, ranked
 
 ---
 
@@ -120,30 +132,35 @@ costs nothing.
 > **Already fine, no action:** `.env` is correctly gitignored and untracked ✓ ·
 > `Kernel.php:5` properly imports the `redirectAdmin` middleware ✓
 
-### 🔄 1.6 Build the model layer
+### ✅ 1.6 Build the model layer
 
 - [x] `GeneratesSlug` trait — unique slug from the English value on create
 - [x] **Brand**, **Category** (self-referencing tree), **Tag** — `HasTranslations`, relations, scopes
 - [x] **User** — `HasRoles`, soft deletes, relations, `isAdmin()`
-- [x] **CartItem**, **Product** — relations fixed *(still need full `$fillable` / `$casts`)*
-- [ ] **~24 remaining models** — ProductVariant, Attribute, AttributeValue, ProductImage,
+- [x] **CartItem**, **Product** — relations fixed, `$fillable` / `$casts` complete
+- [x] **All 30 models** — ProductVariant, Attribute, AttributeValue, ProductImage,
       ProductSpecification, Order, OrderItem, OrderStatusHistory, Payment, Refund, RefundItem,
       UserAddress, Review, ReviewImage, Wishlist, Coupon, CouponUsage, CouponTarget, Currency,
       TaxRate, Setting, ShippingZone, ShippingMethod, InventoryMovement
-- [ ] Scopes: `published()`, `inStock()`, `featured()`, `filter()`
-- [ ] Accessors: `final_price`, `discount_percent`, `primary_image_url`, `is_low_stock`
+- [x] Scopes: `published()`, `inStock()`, `featured()`, `search()`, `active()`
+- [x] Accessors: `final_price`, `discount_percent`, `primary_image_url`, `is_low_stock`
+- [x] **Enums** — `ProductStatus`, `OrderStatus`, `PaymentStatus`, `FulfillmentStatus`, `Role`.
+      `OrderStatus` encodes its own legal transitions and stock-release rule
 
 ### 🔄 1.7 Seeders & factories
 
 - [x] **RoleSeeder** — 4 roles, 56 permissions
 - [x] **DatabaseSeeder** — 3 sample accounts (admin / manager / customer, password `password`)
 - [x] **UserFactory** — with `unverified()` and `inactive()` states
-- [ ] **Catalog seeders** — brands, the category tree, attributes, ~50 products with variants,
-      specs and images. Everything in Phase 3 and 4 needs data to look at
-- [ ] Factories for Product, ProductVariant, Order
+- [x] **ReferenceDataSeeder** — currencies, settings, tax rates, shipping zones & methods
+- [x] **CatalogStructureSeeder** — brands, the category tree, attributes & values, tags
+- [x] **ProductSeeder** — products with variants, specs and images
+- [ ] ⚠️ **Factories for Product, ProductVariant, Order** — the one gap left in Phase 1.
+      Seeders cover *looking at* data; factories are what the Phase 3–6 tests need to
+      generate it. Blocks the test work called out in Phase 3
 
 **✅ Done when:** `migrate:fresh --seed` produces a full catalog, and every model relationship
-resolves in `tinker`.
+resolves in `tinker`. *(Both hold today — only the factories remain.)*
 
 ---
 
@@ -173,7 +190,7 @@ non-admins rather than leaving them logged in.
 
 ---
 
-# ⬜ Phase 3 — Catalog Admin
+# ✅ Phase 3 — Catalog Admin
 
 > **Goal:** you can manage the products you actually sell. The biggest phase — budget accordingly.
 
@@ -181,17 +198,40 @@ Wire the existing Flowbite sidebar links to real routes as you go.
 
 ### Core — build this
 
-- [ ] **Products** — the centrepiece:
-  - [ ] List: search, filter by category/brand/status
-  - [ ] Create/edit: title, description, price, stock, warranty, condition, release year
-  - [ ] **Variant matrix generator** — pick attributes, auto-generate SKU rows with price + stock
-  - [ ] Drag-drop multi-image upload with reorder + primary flag
-  - [ ] Spec-sheet builder (grouped key/value rows)
-  - [ ] Duplicate product — the fastest way to add your 40th similar item
-- [ ] **Categories** — nested tree CRUD ([Appendix B](#appendix-b--category-taxonomy))
-- [ ] **Brands** — CRUD, logo upload
-- [ ] **Media** — `spatie/laravel-medialibrary` + `intervention/image`, thumbnails, WebP
-- [ ] **Inventory** — stock levels + low-stock view
+- [x] **Products** — the centrepiece:
+  - [x] List: search, filter by category/brand/status
+  - [x] Create/edit: title, description, price, stock, warranty, condition, release year
+  - [x] **Variant matrix generator** — pick attributes, auto-generate SKU rows with price + stock
+  - [x] Drag-drop multi-image upload with reorder + primary flag
+  - [x] Spec-sheet builder (grouped key/value rows)
+  - [x] Duplicate product — the fastest way to add your 40th similar item
+- [x] **Categories** — nested tree CRUD ([Appendix B](#appendix-b--category-taxonomy))
+- [x] **Brands** — CRUD, logo upload
+- [~] **Media** — ~~`spatie/laravel-medialibrary` + `intervention/image`~~ — **not installed.**
+      Images are stored through Laravel's own `Storage` disk, with upload, reorder, primary-flag
+      and delete handled in `ProductService`. What that costs: **no thumbnails and no WebP**, so
+      the storefront serves full-size originals. Revisit as a Phase 10 performance item —
+      swapping it in later means rewriting a working image layer, which is not worth doing now
+- [x] **Inventory** — stock levels, low-stock view, adjustments with `inventory_movements` history
+
+> **Built as:** `Admin\{Product,Category,Brand,Inventory}Controller` → `routes/admin.php`, every
+> route gated on a spatie permission. Vue pages in `resources/js/Pages/Admin/`, with
+> `VariantMatrix.vue` and `SpecBuilder.vue` as the two non-trivial components. Product writes go
+> through `ProductService` rather than the controller.
+
+### ⚠️ Outstanding — tests
+
+Phase 3 shipped without any. All 39 passing tests belong to Phases 1–2 (auth, profile, admin
+auth, roles); **nothing covers the catalog admin.** Needed:
+
+- [ ] Product CRUD, including the variant matrix and spec builder round-tripping correctly
+- [ ] Image upload, reorder, primary-flag and delete
+- [ ] Product duplication — the deep-copy of variants, specs, images and tags
+- [ ] Category tree CRUD, brand CRUD
+- [ ] Inventory adjustment writing a correct `inventory_movements` row
+- [ ] Permission gating — a `staff` user blocked from what only `manager` may do
+
+> Depends on the Product/ProductVariant factories still open in [1.7](#-17-seeders--factories).
 
 ### Skip for now
 
@@ -203,25 +243,64 @@ Wire the existing Flowbite sidebar links to real routes as you go.
 | Drag-reorder on the category tree | A `sort_order` number field does the same job | Number input |
 | `inventory_movements` history UI | The rows still get written; you just don't browse them | Query the table if you ever need it |
 
-**✅ Done when:** you can create a gaming laptop with 4 RAM/storage variants, 8 images and a
-20-row spec sheet, and see correct per-variant stock.
+**✅ Done —** you can create a gaming laptop with 4 RAM/storage variants, 8 images and a
+20-row spec sheet, and see correct per-variant stock. Media optimisation and the test suite
+are the two knowingly-deferred pieces above.
 
 ---
 
-# ⬜ Phase 4 — Storefront Catalog
+# 🔄 Phase 4 — Storefront Catalog API
 
-> **Goal:** customers can browse and evaluate products. No cart yet.
+> **Goal:** everything a customer needs to browse and evaluate products, exposed as JSON.
+> No cart yet.
 
-### Core — build this
+> 🔀 **Rewritten.** This phase originally described Inertia pages inside this app. The storefront
+> is now a separate API client, so Phase 4 delivers **endpoints, not screens** — the UI work
+> (layout, home page, gallery, variant picker) belongs to the frontend project and is out of
+> scope here.
 
-- [ ] Storefront layout — header, nav from category tree, footer, mobile menu
-- [ ] **Home** — hero banner, featured categories, new arrivals, best sellers
-- [ ] **Category / listing** — filters that matter for electronics: **brand, price range, in-stock**.
-      Plus sort and pagination
-- [ ] **Product detail** — image gallery, variant picker (disable unavailable combos),
-      price + stock, **spec table**, warranty info, related products
-- [ ] **Search** — MySQL FULLTEXT, results page
-- [ ] **Static pages** — about, contact, warranty, returns, shipping policy
+### ✅ Already built
+
+`routes/api.php`, under `/api/v1` with the `api.locale` middleware:
+
+| Endpoint | Notes |
+|---|---|
+| `GET products` | `spatie/laravel-query-builder` — filters `search`, `brand`, `category`, `price_min`, `price_max`, `in_stock`, `rating_min`, `condition`, `release_year`, `is_featured` |
+| `GET products/{slug}` | Eager-loads brand, category, images, specs, active variants + their attribute values; increments `views_count` |
+| `GET categories` · `GET categories/{slug}` | |
+| `GET brands` · `GET brands/{slug}` | |
+| `GET me` | `auth:sanctum` |
+
+Sorts: `price`, `created_at`, `rating_avg`, `views_count`, `name`. Includes: `brand`, `category`,
+`images`, `variants`, `specifications`. Pagination is `per_page`, capped at 100, default 24.
+
+**Localisation:** `SetApiLocale` resolves the response language from `?lang=km` or
+`Accept-Language`, so translatable columns serialise in the caller's locale. Payloads are shaped
+by six API Resources (`Product`, `ProductVariant`, `ProductImage`, `ProductSpecification`,
+`Brand`, `Category`).
+
+### Core — still to build
+
+- [ ] **Category tree endpoint** — the flat `categories` list can't drive nested navigation.
+      Return the tree in one call, cached (it changes maybe twice a year)
+- [ ] **Filter metadata for listing pages** — the brands, price range and attribute values
+      actually present in a given category, so the frontend can render filters without
+      hardcoding them
+- [ ] **Home-page feed** — featured products, new arrivals, best sellers. One endpoint beats
+      three round-trips on first paint
+- [ ] **Related products** on the detail response
+- [ ] **`GET settings`** — shop name, currency + KHR rate, contact details, static-page copy.
+      The `settings` table exists and is seeded; nothing reads it yet
+- [ ] ⚠️ **Search is a `LIKE '%term%'`, not FULLTEXT.** `Product::search()` scans `title` and
+      `sku` with leading wildcards, so **no index can be used** — every search is a table scan.
+      `title` is also a translatable JSON column, so the pattern matches raw JSON and hits
+      every locale at once. There are no `fullText()` indexes in any migration. Fine at 50
+      products, the first thing to hurt at 500. Fix: add a FULLTEXT index and switch the scope
+      to `whereFullText`, or promote a plain searchable column
+- [ ] **API tests** — filtering, sorting, pagination, locale negotiation, and 404s for
+      unpublished or missing slugs
+- [ ] **Decide auth model** — Sanctum is installed and `GET me` is gated, but there are no
+      customer register/login endpoints yet. Needed before Phase 5's user carts
 
 ### Skip for now
 
@@ -230,25 +309,34 @@ Wire the existing Flowbite sidebar links to real routes as you go.
 | Deep spec faceting (CPU, RAM, screen size as filters) | Needs specs promoted to indexed columns. Brand + price covers most of the value at your catalog size |
 | Search autocomplete | The results page is enough under a few hundred products |
 | Recently viewed | Pure nice-to-have |
-| Grid/list toggle | Pick one layout |
-| Banner slider | One static hero image converts about as well and is far less code |
+| Rate limiting per-endpoint | The default `api` throttle is fine until there's real traffic |
+| API docs (OpenAPI/Scramble) | One consumer, written by you. The route file is the doc |
 
-**✅ Done when:** a customer can filter to "Laptops, Asus, under $1500" and open a product with a
-working variant picker.
+**✅ Done when:** `GET /api/v1/products?filter[category]=laptops&filter[brand]=asus&filter[price_max]=1500`
+returns the right page, and the detail response carries everything a variant picker needs.
 
 ---
 
-# ⬜ Phase 5 — Cart
+# ⬜ Phase 5 — Cart API
 
 > **Goal:** guest and logged-in carts that behave correctly across login.
 
 - [ ] **`CartService`** — add / update / remove, and **merge guest cart into user cart on login**
       (the part that's easy to get wrong)
-- [ ] Cart page — quantity update, totals, stock re-validation
-- [ ] Mini-cart dropdown in the header
-- [ ] Cart count shared via `HandleInertiaRequests`
+- [ ] **Endpoints** — `GET/POST/PATCH/DELETE /api/v1/cart`, returning the full cart with line
+      subtotals and a grand total on every mutation, so the client never recomputes money
+- [ ] Stock re-validation on read *and* on write — a cart can go stale between the two
+- [ ] Surface `price_changed` per line — `CartItem` already exposes the accessor
+- [ ] **Guest cart identity** — the API has no session cookie to lean on. Issue a cart token the
+      client stores and sends back; `cart_items.session_id` is the column it maps to. **Settle
+      this before writing `CartService`** — it decides the whole endpoint contract
 
-> Schema is already done — `cart_items` has `product_variant_id`, `session_id` and `price_at_add`.
+> Schema is already done — `cart_items` has `product_variant_id`, `session_id` and `price_at_add`,
+> and the model exposes `current_price`, `subtotal` and `price_changed` accessors plus
+> `forUser()` / `forSession()` scopes.
+
+> ~~Mini-cart dropdown, cart count via `HandleInertiaRequests`~~ — frontend concerns, out of
+> scope for the API. The count is derivable from the cart response.
 
 **✅ Done when:** add to cart as a guest, log in, and the items are still there — with no duplicates.
 
@@ -261,13 +349,18 @@ working variant picker.
 
 ### Core — build this
 
-- [ ] **Checkout flow** — guest + logged-in, address form, shipping method, COD, order review
+- [ ] **Checkout endpoint** — guest + logged-in, taking address, shipping method and COD in one
+      `POST /api/v1/checkout`, wrapped in a transaction
 - [ ] **`CheckoutService`** — validate stock → create order → decrement stock
-- [ ] **`PricingService`** — variant price, shipping, totals
+- [ ] **`PricingService`** — variant price, shipping, totals. **The server is the only authority
+      on money** — never accept a client-sent total
 - [ ] **`InventoryService`** — decrement on order, restock on cancel
 - [ ] `OrderNumberGenerator` — `ORD-20260816-0001`
-- [ ] Order confirmation page + order tracking by number (guests included)
-- [ ] Customer address book (create/edit/default)
+- [ ] **Quote endpoint** — totals for a cart + address *before* committing, so the client can
+      show shipping and grand total on the checkout screen
+- [ ] Order confirmation response + **order tracking by number** (guests included — needs an
+      unauthenticated lookup, so pair the number with the order email to prevent enumeration)
+- [ ] Customer address book — `/api/v1/addresses` CRUD with default shipping/billing
 
 > Already built: `ShippingZone::forProvince()` resolves Phnom Penh vs provinces,
 > `ShippingMethod::calculate()` handles flat/weight/free-threshold, `UserAddress::toSnapshot()`
@@ -308,15 +401,19 @@ correct total.
 
 ### Core — build this
 
+> This phase stays **Inertia + Vue** — it lives in the admin panel, not the storefront.
+
 - [ ] **Orders admin** — list with status/date filters; detail page (items, customer, address,
       timeline); status transitions
 - [ ] **Invoices + delivery notes** — `barryvdh/laravel-dompdf`
 - [ ] **Emails** — order confirmation, shipped, delivered
 - [ ] ⚠️ **Switch `QUEUE_CONNECTION` off `sync`** — every email currently blocks the request.
-      Tables already exist; it's a one-line `.env` change
-- [ ] Configure real SMTP (`MAIL_HOST=mailpit` is dev-only)
-- [ ] **Dashboard** — replace the placeholder boxes: today's revenue, orders by status,
-      low-stock alerts, recent orders
+      Tables already exist; it's a one-line `.env` change *(still `sync` as of today)*
+- [ ] Configure real SMTP (`MAIL_HOST=mailpit` is dev-only — *still mailpit*)
+- [x] **Dashboard** — ✅ **built ahead of schedule.** `AdminController` already serves today's and
+      this month's revenue, a zero-filled 14-day sales chart, orders by status, low-stock alerts,
+      recent orders and top products by views. Note this contradicts the "sales charts" skip
+      below — the chart got built anyway
 
 > `OrderStatus` already encodes its own legal transitions and stock-release rule, so the admin
 > just calls `canTransitionTo()`.
@@ -327,7 +424,7 @@ correct total.
 |---|---|
 | Customers admin (list, lifetime value) | You can see who ordered from the order itself |
 | Reports module + CSV export | A few SQL queries when you're curious beats a reporting UI |
-| Sales charts | Same |
+| ~~Sales charts~~ | **Built anyway** — the dashboard carries a 14-day revenue chart |
 | Activity log UI | Rows still get written; browse the table if needed |
 
 **✅ Done when:** an order can go placed → confirmed → shipped → delivered, with the customer
@@ -335,12 +432,15 @@ emailed at each step and a printable invoice.
 
 ---
 
-# ⬜ Phase 9 — Customer Account
+# ⬜ Phase 9 — Customer Account API
 
 > **Goal:** returning customers can see their history.
 
-- [ ] **Account** — order list + detail, addresses, profile/password
-- [ ] **Wishlist** — cheap to add, genuinely used
+> Sanctum-authenticated endpoints, not Inertia pages. Depends on the customer auth model
+> settled in [Phase 4](#-phase-4--storefront-catalog-api).
+
+- [ ] **Account** — `GET /orders`, `GET /orders/{number}`, addresses CRUD, profile + password
+- [ ] **Wishlist** — cheap to add, genuinely used. `wishlists` table and model already exist
 
 ### Skip for now
 
@@ -355,12 +455,20 @@ emailed at each step and a printable invoice.
 
 > **Goal:** make it fast and findable. Do these before launch, not after.
 
-- [ ] **SEO** — slug routes, `sitemap.xml`, meta tags, Open Graph, JSON-LD Product schema
-      (gets rich results with price and rating in Google)
+- [ ] **SEO** — 🔀 mostly the **frontend's** job now (meta tags, Open Graph, JSON-LD, rendering
+      strategy). This repo owns the inputs: `meta_title` / `meta_description` in API responses,
+      stable slugs, and a `sitemap.xml` feed the frontend can consume
+- [ ] **Images** — the deferred Phase 3 item: resizing, thumbnails and WebP. Serving full-size
+      originals is the single biggest storefront payload win available
+- [ ] **Search** — the deferred Phase 4 item: FULLTEXT index, drop the unindexed `LIKE`
 - [ ] **Performance** — eager-load to kill N+1, cache the category tree and settings,
       `CACHE_DRIVER=redis`, paginate everywhere
-- [ ] **Security** — `APP_DEBUG=false`, rate-limit checkout, validate all uploads
-- [ ] Feature tests: cart, checkout, order creation, stock decrement
+- [ ] **Security** — `APP_DEBUG=false` *(currently `true`)*, rate-limit checkout, validate all
+      uploads, and **write the policies** deferred since Phase 2
+- [ ] **CORS** — the storefront is a different origin. `config/cors.php` needs a real allowlist
+      before launch, not `*`
+- [ ] Feature tests: cart, checkout, order creation, stock decrement — plus the Phase 3 catalog
+      admin tests still outstanding
 - [ ] Backups — a nightly `mysqldump` is enough
 
 ### Skip for now
@@ -369,7 +477,7 @@ emailed at each step and a printable invoice.
 |---|---|
 | Coupons admin UI | `Coupon::discountFor()` is written. Add codes via tinker until you run real promotions |
 | Product compare | High value at scale, low at 50 products |
-| Meilisearch / Scout | MySQL FULLTEXT handles thousands of products |
+| Meilisearch / Scout | MySQL FULLTEXT handles thousands of products — add the index first |
 | Laravel Horizon | Only worth it once queues are busy |
 | Flash sales | `compare_at_price` already gives you strike-through pricing |
 
@@ -548,26 +656,40 @@ Attributes generate variants, so they differ by category:
 
 # Appendix C — Packages
 
+### Installed
+
+| Package | Purpose | Phase |
+|---|---|---|
+| `spatie/laravel-permission` | roles & permissions | 2 |
+| `spatie/laravel-activitylog` | admin audit trail | 2 |
+| `spatie/laravel-translatable` | JSON translatable columns (EN/KM) | 1 |
+| `spatie/laravel-query-builder` | API filtering, sorting, includes | 4 |
+| `inertiajs/inertia-laravel` | admin panel | 1 |
+| `laravel/sanctum` | customer API auth | 4 |
+| `tightenco/ziggy` | route names in Vue | 1 |
+
+### Planned but not installed
+
+| Package | Status |
+|---|---|
+| `spatie/laravel-sluggable` | **Not used.** Replaced by the hand-rolled `GeneratesSlug` trait in `app/Models/Concerns/` — fewer moving parts for one behaviour |
+| `spatie/laravel-medialibrary` + `intervention/image` | **Not installed.** Images go through plain `Storage`; no thumbnails, no WebP. See [Phase 3](#-phase-3--catalog-admin) |
+| `barryvdh/laravel-dompdf` | Phase 8 — invoices & delivery notes |
+
 ```bash
-# Phase 1–3
-composer require \
-  spatie/laravel-permission \    # roles & permissions        (Phase 2)
-  spatie/laravel-activitylog \   # admin audit trail          (Phase 2)
-  spatie/laravel-sluggable \     # slugs                      (Phase 1)
-  spatie/laravel-medialibrary \  # product images             (Phase 3)
-  intervention/image             # thumbnails / WebP          (Phase 3)
-
-# Phase 8
-composer require barryvdh/laravel-dompdf   # invoices & delivery notes
-
 # Not needed at personal-shop scale — revisit only if you outgrow them
 #   maatwebsite/excel     report export      → a SQL query covers it
-#   laravel/scout         + Meilisearch      → MySQL FULLTEXT handles thousands of products
+#   laravel/scout         + Meilisearch      → add a FULLTEXT index first (Phase 4)
 #   laravel/horizon       queue monitoring   → only once queues are busy
 ```
 
-**Frontend:** TipTap (rich text editor), a chart library for the dashboard,
-`vuedraggable` (image + category reordering).
+**Admin frontend:** `package.json` carries only Vue 3, Inertia, Tailwind, Flowbite, Vite and
+axios. The three packages originally planned here — **TipTap** (rich text), a **chart library**,
+and **`vuedraggable`** (reordering) — were never installed; the dashboard chart and the image
+drag-reorder are hand-rolled instead. Add them only if the hand-rolled versions start costing
+more than the dependency would.
+
+**Storefront frontend:** a separate project consuming `/api/v1`. Not covered by this roadmap.
 
 ---
 
@@ -575,8 +697,8 @@ composer require barryvdh/laravel-dompdf   # invoices & delivery notes
 
 | Concern | Recommendation | Phase |
 |---|---|---|
-| **Images** | `spatie/laravel-medialibrary` + `intervention/image` — thumbnails, WebP. Product photos are your heaviest asset | 3 |
-| **Search** | MySQL FULLTEXT first; `laravel/scout` + Meilisearch as the catalog grows | 4 → 10 |
+| **Images** | ⚠️ Plain `Storage`, no resizing — full-size originals are served to the storefront. `medialibrary` + `intervention/image` deferred | 3 → 10 |
+| **Search** | ⚠️ Currently `LIKE '%term%'`, unindexed. Move to MySQL FULLTEXT; `laravel/scout` + Meilisearch only if the catalog grows | 4 → 10 |
 | **Payments** | Cambodia: ABA PayWay, Bakong KHQR, Wing, plus COD. Stripe/PayPal if selling abroad. Abstract behind a `PaymentGateway` interface | 6–7 |
 | **Currency** | USD + KHR if selling locally — **decide early**, it touches every price column | 1 |
 | **Language** | EN + KM if local — **decide early**, it changes column design (JSON translatable vs separate tables) | 1 |
@@ -589,18 +711,37 @@ composer require barryvdh/laravel-dompdf   # invoices & delivery notes
 
 ## Application layer conventions
 
-- **Form Requests** — one per create/update action. Currently 2 exist; roughly **25** needed
-- **Policies** — `ProductPolicy`, `OrderPolicy`, `ReviewPolicy`, `CouponPolicy`
-- **API Resources** — for shaping Inertia payloads now, and a mobile app later
+- **Form Requests** — one per create/update action. **5 exist** (`Admin\{Brand,Category,Product}Request`,
+  `Auth\LoginRequest`, `ProfileUpdateRequest`); roughly **25** needed by Phase 6
+- **Policies** — ⚠️ **none written yet.** `ProductPolicy`, `OrderPolicy`, `ReviewPolicy`,
+  `CouponPolicy` were deferred out of Phase 2 into Phase 3, and Phase 3 shipped without them.
+  Authorization currently rides entirely on route-level `can:` middleware, which covers the
+  admin panel but gives you nothing for per-record rules
+- **API Resources** — 6 exist, all catalog-facing. Extend for cart, order and account payloads
 - **Service classes** — keep controllers thin:
 
 | Class | Responsibility | Phase |
 |---|---|---|
+| `ProductService` ✅ | Create/update with variants, specs, images; duplicate | 3 |
 | `CartService` | Add/update/remove, **merge guest cart into user cart on login** | 5 |
 | `CheckoutService` | Validate stock → reserve → create order → payment | 6 |
 | `PricingService` | Variant price, coupon, tax, shipping | 6 |
 | `InventoryService` | Decrement on order, restock on cancel | 6 |
 | `OrderNumberGenerator` | Sequential human-readable order numbers | 6 |
+
+## API conventions
+
+The storefront API is the contract with a separate frontend, so keep it predictable:
+
+| Concern | Convention |
+|---|---|
+| **Versioning** | `/api/v1/*`. Breaking changes get a `v2`, they don't mutate `v1` |
+| **Filtering** | `spatie/laravel-query-builder` — `filter[brand]=asus&sort=-price&include=brand,images` |
+| **Payloads** | Always an API Resource, never a raw model — resources are what stop an internal column leaking into a public response |
+| **Locale** | `?lang=km` or `Accept-Language`, resolved by `SetApiLocale` against `config('app.supported_locales')` |
+| **Pagination** | `per_page`, capped server-side (100 on products) |
+| **Money** | Computed server-side, always. A client-supplied total is never trusted |
+| **Auth** | Sanctum tokens. Admin stays session-based Inertia — the two never mix |
 
 ---
 
@@ -612,6 +753,8 @@ composer require barryvdh/laravel-dompdf   # invoices & delivery notes
 | 2 | **Language** | **English + Khmer** | Product/category/brand text columns are **JSON translatable** (`spatie/laravel-translatable`). Admin gets per-locale input tabs. `config/app.php` locale `en`, fallback `en` |
 | 3 | **Variants** | **Yes** | `product_variants` + `attributes` + `attribute_values` as designed. Price and stock live on the variant, not the product |
 | 4 | **Skeleton** | **Migrated** ✅ | Laravel 12 structure — `bootstrap/app.php` + `bootstrap/providers.php`. Done in Phase 1 |
+| 5 | **Storefront delivery** | **Separate API client** 🔀 | *Changed after Phase 3.* The storefront is no longer Inertia pages in this app. This app is the **admin panel + JSON API**; the customer UI is a separate frontend against `/api/v1`. Consequences: Phases 4, 5 and 9 ship endpoints rather than screens · payload shaping moves to API Resources · guest carts need a client-held token instead of a session cookie · SEO (Phase 10) becomes the frontend's problem, not this repo's |
+| 6 | **Slugs** | **Hand-rolled** | `GeneratesSlug` trait instead of `spatie/laravel-sluggable` |
 
 ### Translatable columns
 
@@ -639,4 +782,21 @@ rate change never rewrites historical order totals.
 
 ---
 
-*Last updated: 2026-08-16*
+---
+
+## Where things actually stand
+
+Carried forward from earlier phases, in the order they'll bite:
+
+| # | Item | From | Why it matters |
+|---|---|---|---|
+| 1 | **Product / ProductVariant / Order factories** | 1.7 | Blocks every test below |
+| 2 | **No catalog-admin tests** | 3 | The largest phase shipped with zero coverage |
+| 3 | **No policies** | 2 → 3 | Route middleware only; no per-record authorization |
+| 4 | **Customer auth endpoints** | 4 | Sanctum installed, but no register/login — blocks Phase 5 user carts |
+| 5 | **Guest cart identity** | 5 | Decide the token scheme before writing `CartService` |
+| 6 | **Search is an unindexed `LIKE`** | 4 | Fine at 50 products, painful at 500 |
+| 7 | **No image resizing** | 3 | Storefront gets full-size originals |
+| 8 | **`QUEUE_CONNECTION=sync`, mailpit, `APP_DEBUG=true`** | 8, 10 | Config, not code — but all three block launch |
+
+*Last updated: 2026-08-17 — reconciled against the codebase after Phase 3.*
