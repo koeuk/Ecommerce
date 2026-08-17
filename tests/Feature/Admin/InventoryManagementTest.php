@@ -161,8 +161,10 @@ class InventoryManagementTest extends TestCase
         $this->assertSame(10, $variant->fresh()->stock_quantity);
     }
 
-    public function test_staff_can_view_but_not_adjust_inventory(): void
+    public function test_staff_may_adjust_stock(): void
     {
+        // Stock handling is squarely a staff job — RoleSeeder grants them
+        // 'view inventory' and 'update inventory' on purpose.
         $staff = tap(User::factory()->create())->assignRole(Role::Staff->value);
         $variant = ProductVariant::factory()->create(['stock_quantity' => 5]);
 
@@ -170,8 +172,21 @@ class InventoryManagementTest extends TestCase
 
         $this->actingAs($staff)
             ->put(route('admin.inventory.adjust', $variant), ['mode' => 'add', 'quantity' => 1])
-            ->assertForbidden();
+            ->assertSessionHasNoErrors();
 
-        $this->assertSame(5, $variant->fresh()->stock_quantity);
+        $this->assertSame(6, $variant->fresh()->stock_quantity);
+        $this->assertDatabaseHas('inventory_movements', [
+            'product_variant_id' => $variant->id,
+            'created_by' => $staff->id,
+        ]);
+    }
+
+    public function test_customers_cannot_reach_the_inventory_admin(): void
+    {
+        $customer = tap(User::factory()->create())->assignRole(Role::Customer->value);
+
+        $this->actingAs($customer)
+            ->get(route('admin.inventory.index'))
+            ->assertRedirect();
     }
 }
