@@ -33,7 +33,7 @@ const sections = computed(() => [
         heading: 'Sales',
         items: [
             { label: 'Orders', href: route('admin.orders.index'), path: '/admin/orders', icon: 'cart', show: can('view order') },
-            { label: 'Customers', href: null, path: '/admin/customers', icon: 'users', show: can('view customer'), soon: true },
+            { label: 'Customers', href: route('admin.customers.index'), path: '/admin/customers', icon: 'users', show: can('view customer') },
         ],
     },
 ])

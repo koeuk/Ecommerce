@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\Admin\BrandController;
 use App\Http\Controllers\Admin\CategoryController;
+use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\InventoryController;
 use App\Http\Controllers\Admin\OrderController;
 use App\Http\Controllers\Admin\ProductController;
@@ -97,6 +98,16 @@ Route::middleware('can:update order')->group(function () {
     Route::put('orders/{order:id}/paid', [OrderController::class, 'markPaid'])->name('orders.paid');
     Route::put('orders/{order:id}/note', [OrderController::class, 'updateNote'])->name('orders.note');
 });
+
+// Customers
+Route::middleware('can:view customer')->group(function () {
+    Route::get('customers', [CustomerController::class, 'index'])->name('customers.index');
+    Route::get('customers/{customer:id}', [CustomerController::class, 'show'])->name('customers.show');
+});
+
+Route::put('customers/{customer:id}/active', [CustomerController::class, 'toggleActive'])
+    ->middleware('can:update customer')
+    ->name('customers.active');
 
 // Inventory
 Route::middleware('can:view inventory')->group(function () {
