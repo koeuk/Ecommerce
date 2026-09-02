@@ -6,22 +6,46 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\CategoryRequest;
 use App\Models\Category;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
+use Spatie\QueryBuilder\AllowedFilter;
+use Spatie\QueryBuilder\QueryBuilder;
 
 class CategoryController extends Controller
 {
-    public function index(): Response
+    public function index(Request $request): Response
     {
-        $categories = Category::query()
+        /*
+         * Not paginated, unlike the other admin lists: the tree has to be
+         * assembled whole or a parent could arrive on a page without its
+         * children. The taxonomy is 2-3 levels deep by design, so the whole
+         * set is a cheap read.
+         */
+        $categories = QueryBuilder::for(Category::class)
             ->withCount('products')
-            ->orderBy('sort_order')
+            ->allowedFilters(...[
+                AllowedFilter::callback('search', fn ($query, $value) => $query->where(
+                    fn ($q) => $q->whereRaw('CAST(name AS CHAR) LIKE ?', ["%{$value}%"])
+                        ->orWhere('slug', 'like', "%{$value}%")
+                )),
+                AllowedFilter::callback('status', fn ($query, $value) => $query->where(
+                    'is_active',
+                    $value === 'active'
+                )),
+                AllowedFilter::exact('is_featured'),
+                AllowedFilter::exact('parent_id'),
+            ])
+            ->allowedSorts(...['sort_order', 'slug', 'created_at', 'products_count'])
+            ->defaultSort('sort_order')
             ->get();
 
         return Inertia::render('Admin/Categories/Index', [
             'tree' => $this->buildTree($categories),
             'total' => $categories->count(),
+            'filters' => $request->input('filter', []),
         ]);
     }
 
@@ -71,21 +95,34 @@ class CategoryController extends Controller
 
     public function destroy(Category $category): RedirectResponse
     {
-        if ($category->children()->exists()) {
-            return back()->with(
-                'error',
-                'This category has sub-categories. Delete or move them first.'
-            );
-        }
+        /*
+         * The guards and the delete run in one transaction under a row lock.
+         * Without it, a product could be assigned to this category between
+         * the check passing and the delete landing, orphaning that product.
+         */
+        $error = DB::transaction(function () use ($category) {
+            $locked = Category::lockForUpdate()->find($category->id);
 
-        if ($category->products()->exists()) {
-            return back()->with(
-                'error',
-                'This category still has products. Reassign them before deleting.'
-            );
-        }
+            if (! $locked) {
+                return 'That category no longer exists.';
+            }
 
-        $category->delete();
+            if ($locked->children()->exists()) {
+                return 'This category has sub-categories. Delete or move them first.';
+            }
+
+            if ($locked->products()->exists()) {
+                return 'This category still has products. Reassign them before deleting.';
+            }
+
+            $locked->delete();
+
+            return null;
+        });
+
+        if ($error) {
+            return back()->with('error', $error);
+        }
 
         return redirect()->route('admin.categories.index')
             ->with('success', 'Category deleted.');
@@ -140,16 +177,22 @@ class CategoryController extends Controller
     {
         return $categories
             ->where('parent_id', $parentId)
-            ->map(fn (Category $c) => [
-                'id' => $c->id,
-                'name' => $c->getTranslations('name'),
-                'slug' => $c->slug,
-                'is_active' => $c->is_active,
-                'is_featured' => $c->is_featured,
-                'sort_order' => $c->sort_order,
-                'products_count' => $c->products_count,
-                'children' => $this->buildTree($categories, $c->id),
-            ])
+            ->map(function (Category $c) use ($categories) {
+                $children = $this->buildTree($categories, $c->id);
+
+                return [
+                    'id' => $c->id,
+                    'name' => $c->getTranslations('name'),
+                    'slug' => $c->slug,
+                    'is_active' => $c->is_active,
+                    'is_featured' => $c->is_featured,
+                    'sort_order' => $c->sort_order,
+                    // Own products plus everything under this category's subtree.
+                    'products_count' => $c->products_count
+                        + collect($children)->sum('products_count'),
+                    'children' => $children,
+                ];
+            })
             ->values()
             ->all();
     }

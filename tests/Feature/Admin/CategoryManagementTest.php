@@ -140,6 +140,51 @@ class CategoryManagementTest extends TestCase
             ->assertSessionHasErrors('slug');
     }
 
+    public function test_the_tree_rolls_descendant_product_counts_upward(): void
+    {
+        $root = Category::factory()->create(['name' => ['en' => 'Computers']]);
+        $child = Category::factory()->childOf($root)->create(['name' => ['en' => 'Laptops']]);
+
+        Product::factory()->forCategory($root)->create();
+        Product::factory()->count(2)->forCategory($child)->create();
+
+        $this->actingAs($this->manager)
+            ->get(route('admin.categories.index'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                // A parent reports its own products plus everything beneath it.
+                ->where('tree.0.products_count', 3)
+                ->where('tree.0.children.0.products_count', 2)
+            );
+    }
+
+    public function test_the_list_can_be_filtered_and_sorted(): void
+    {
+        Category::factory()->create(['name' => ['en' => 'Laptops'], 'sort_order' => 2]);
+        Category::factory()->inactive()->create(['name' => ['en' => 'Retired'], 'sort_order' => 1]);
+
+        // spatie/laravel-query-builder drives these, same as the other lists.
+        $this->actingAs($this->manager)
+            ->get(route('admin.categories.index', ['filter' => ['status' => 'active']]))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->count('tree', 1));
+
+        $this->actingAs($this->manager)
+            ->get(route('admin.categories.index', ['filter' => ['search' => 'Lap']]))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->count('tree', 1));
+    }
+
+    public function test_an_unsupported_sort_is_rejected(): void
+    {
+        Category::factory()->create();
+
+        // The allow-list stops an internal column being exposed via ordering.
+        $this->actingAs($this->manager)
+            ->get(route('admin.categories.index', ['sort' => 'image']))
+            ->assertBadRequest();
+    }
+
     public function test_staff_cannot_create_categories(): void
     {
         $staff = tap(User::factory()->create())->assignRole(Role::Staff->value);
