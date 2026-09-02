@@ -1,6 +1,6 @@
 <script setup>
-import { ref, watch } from 'vue'
-import { Head, Link, router } from '@inertiajs/vue3'
+import { computed, ref, watch } from 'vue'
+import { Head, Link, router, usePage } from '@inertiajs/vue3'
 import { debounce } from '@/utils/debounce'
 import AdminLayout from '../Components/AdminLayout.vue'
 import PageHeader from '@/Components/Admin/PageHeader.vue'
@@ -12,6 +12,22 @@ const props = defineProps({
     filters: { type: Object, default: () => ({}) },
     summary: { type: Object, required: true },
 })
+
+const page = usePage()
+const canUpdate = computed(() => (page.props.auth?.user?.permissions ?? []).includes('update customer'))
+
+/*
+ * Same action as the detail page, offered inline so deactivating an account
+ * does not require opening it first. preserveScroll keeps the admin's place
+ * in a long list.
+ */
+const toggleActive = (customer) => {
+    const action = customer.is_active ? 'Deactivate' : 'Activate'
+
+    if (!confirm(`${action} ${customer.name}'s account?`)) return
+
+    router.put(route('admin.customers.active', customer.id), {}, { preserveScroll: true })
+}
 
 const search = ref(props.filters.search ?? '')
 const status = ref(props.filters.status ?? '')
@@ -80,6 +96,7 @@ const field = 'rounded-lg border-gray-300 text-sm focus:border-brand-600 focus:r
                             <th class="px-4 py-3">Status</th>
                             <th class="px-4 py-3">Last order</th>
                             <th class="px-4 py-3">Joined</th>
+                            <th class="px-4 py-3 text-right">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -114,10 +131,23 @@ const field = 'rounded-lg border-gray-300 text-sm focus:border-brand-600 focus:r
                             </td>
                             <td class="px-4 py-3 text-xs text-gray-500">{{ customer.last_order_at ?? '—' }}</td>
                             <td class="px-4 py-3 text-xs text-gray-500">{{ customer.joined_at }}</td>
+                            <td class="px-4 py-3 text-right">
+                                <button
+                                    v-if="canUpdate"
+                                    type="button"
+                                    class="rounded-lg border px-2.5 py-1 text-xs font-medium transition"
+                                    :class="customer.is_active
+                                        ? 'border-red-300 text-red-700 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/30'
+                                        : 'border-green-300 text-green-700 hover:bg-green-50 dark:border-green-800 dark:text-green-400 dark:hover:bg-green-900/30'"
+                                    @click="toggleActive(customer)"
+                                >
+                                    {{ customer.is_active ? 'Deactivate' : 'Activate' }}
+                                </button>
+                            </td>
                         </tr>
 
                         <tr v-if="customers.data.length === 0">
-                            <td colspan="7" class="px-4 py-10 text-center text-gray-500">No customers match these filters.</td>
+                            <td colspan="8" class="px-4 py-10 text-center text-gray-500">No customers match these filters.</td>
                         </tr>
                     </tbody>
                 </table>

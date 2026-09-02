@@ -148,6 +148,21 @@ class CustomerManagementTest extends TestCase
 
     // Permissions
 
+    public function test_the_list_exposes_the_activation_permission_to_the_view(): void
+    {
+        $customer = tap(User::factory()->create())->assignRole(Role::Customer->value);
+
+        // The inline toggle on the list renders off this permission, so the
+        // manager must actually receive it in the shared Inertia props.
+        $response = $this->actingAs($this->manager)
+            ->get(route('admin.customers.index'))
+            ->assertOk();
+
+        $permissions = $response->viewData('page')['props']['auth']['user']['permissions'];
+
+        $this->assertContains('update customer', $permissions);
+    }
+
     public function test_staff_may_view_but_not_update(): void
     {
         $staff = tap(User::factory()->create())->assignRole(Role::Staff->value);

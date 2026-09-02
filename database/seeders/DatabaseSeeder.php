@@ -15,6 +15,7 @@ class DatabaseSeeder extends Seeder
             ReferenceDataSeeder::class,
             CatalogStructureSeeder::class,
             ProductSeeder::class,
+            OrderSeeder::class,
         ]);
 
         $this->accounts();
