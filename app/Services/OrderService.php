@@ -100,19 +100,23 @@ class OrderService
      */
     public function markPaid(Order $order, ?User $actor = null): Order
     {
-        $order->forceFill([
-            'payment_status' => PaymentStatus::Paid,
-            'paid_at' => now(),
-            'updated_by' => $actor?->id,
-        ])->save();
+        // The payment stamp and its audit row are one fact — a failure
+        // between them would leave an order paid with no trace of who or when.
+        return DB::transaction(function () use ($order, $actor) {
+            $order->forceFill([
+                'payment_status' => PaymentStatus::Paid,
+                'paid_at' => now(),
+                'updated_by' => $actor?->id,
+            ])->save();
 
-        $order->statusHistories()->create([
-            'from_status' => $order->status->value,
-            'to_status' => $order->status->value,
-            'note' => 'Payment received',
-            'created_by' => $actor?->id,
-        ]);
+            $order->statusHistories()->create([
+                'from_status' => $order->status->value,
+                'to_status' => $order->status->value,
+                'note' => 'Payment received',
+                'created_by' => $actor?->id,
+            ]);
 
-        return $order->fresh();
+            return $order->fresh();
+        });
     }
 }

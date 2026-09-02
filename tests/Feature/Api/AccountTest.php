@@ -65,6 +65,38 @@ class AccountTest extends TestCase
             ->assertJsonPath('data.1.order_number', $older->order_number);
     }
 
+    public function test_order_history_can_be_filtered_and_sorted(): void
+    {
+        Order::factory()->create(['user_id' => $this->customer->id]);
+        Order::factory()->cancelled()->create(['user_id' => $this->customer->id]);
+
+        $this->actingAs($this->customer, 'sanctum')
+            ->getJson('/api/v1/account/orders?filter[status]=cancelled')
+            ->assertOk()
+            ->assertJsonCount(1, 'data');
+
+        $this->actingAs($this->customer, 'sanctum')
+            ->getJson('/api/v1/account/orders?sort=grand_total')
+            ->assertOk();
+    }
+
+    public function test_a_customer_cannot_widen_their_order_scope_from_the_url(): void
+    {
+        Order::factory()->create(['user_id' => $this->customer->id]);
+        $theirs = Order::factory()->create();
+
+        // user_id is applied to the base query, not exposed as a filter, so
+        // no query string can reach another customer's orders.
+        $this->actingAs($this->customer, 'sanctum')
+            ->getJson("/api/v1/account/orders?filter[user_id]={$theirs->user_id}")
+            ->assertBadRequest();
+
+        $this->actingAs($this->customer, 'sanctum')
+            ->getJson('/api/v1/account/orders')
+            ->assertOk()
+            ->assertJsonCount(1, 'data');
+    }
+
     // Profile
 
     public function test_a_customer_can_update_their_profile(): void

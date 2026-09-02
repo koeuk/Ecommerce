@@ -75,19 +75,25 @@ class CartService
 
     public function update(?User $user, ?string $token, int $itemId, int $quantity): ?CartItem
     {
-        $item = $this->findItem($user, $token, $itemId);
+        return DB::transaction(function () use ($user, $token, $itemId, $quantity) {
+            $item = $this->findItem($user, $token, $itemId);
 
-        if ($quantity <= 0) {
-            $item->delete();
+            if ($quantity <= 0) {
+                $item->delete();
 
-            return null;
-        }
+                return null;
+            }
 
-        $this->assertStock($item->variant, $quantity);
+            // Lock the variant so the stock read and the write cannot be
+            // separated by somebody else's checkout.
+            $variant = ProductVariant::lockForUpdate()->find($item->product_variant_id);
 
-        $item->update(['quantity' => $quantity]);
+            $this->assertStock($variant, $quantity);
 
-        return $item;
+            $item->update(['quantity' => $quantity]);
+
+            return $item;
+        });
     }
 
     public function remove(?User $user, ?string $token, int $itemId): void

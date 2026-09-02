@@ -12,10 +12,13 @@ use App\Services\OrderService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
+use Spatie\QueryBuilder\AllowedFilter;
+use Spatie\QueryBuilder\QueryBuilder;
 
 /**
  * The signed-in customer's own data. Every query is scoped to the
@@ -23,13 +26,30 @@ use Illuminate\Validation\ValidationException;
  */
 class AccountController extends Controller
 {
-    /** GET /api/v1/account/orders */
+    /**
+     * GET /api/v1/account/orders
+     *
+     * Filtering and sorting follow the same query-builder conventions as the
+     * public catalogue, so the frontend uses one idiom throughout. The
+     * user scope is applied to the base query, never to an allowed filter —
+     * a customer must not be able to widen it from the URL.
+     */
     public function orders(Request $request): JsonResponse
     {
-        $orders = Order::where('user_id', $request->user()->id)
+        $orders = QueryBuilder::for(
+            Order::where('user_id', $request->user()->id)
+        )
             ->withCount('items')
-            ->latest('placed_at')
-            ->paginate(min($request->integer('per_page', 15), 50));
+            ->allowedFilters(...[
+                AllowedFilter::exact('status'),
+                AllowedFilter::exact('payment_status'),
+                AllowedFilter::callback('from', fn ($q, $v) => $q->whereDate('placed_at', '>=', $v)),
+                AllowedFilter::callback('to', fn ($q, $v) => $q->whereDate('placed_at', '<=', $v)),
+            ])
+            ->allowedSorts(...['placed_at', 'grand_total', 'order_number'])
+            ->defaultSort('-placed_at')
+            ->paginate(min($request->integer('per_page', 15), 50))
+            ->withQueryString();
 
         return response()->json([
             'data' => $orders->through(fn (Order $order) => [
@@ -122,11 +142,17 @@ class AccountController extends Controller
             ]);
         }
 
-        $user->forceFill(['password' => Hash::make($data['password'])])->save();
+        /*
+         * The new hash and the revocation are one security action. Committing
+         * the hash without the revocation would leave old devices signed in
+         * on a password the customer believes they have replaced.
+         */
+        DB::transaction(function () use ($user, $data) {
+            $user->forceFill(['password' => Hash::make($data['password'])])->save();
 
-        // Changing a password signs every other device out.
-        $current = $user->currentAccessToken();
-        $user->tokens()->where('id', '!=', $current?->id)->delete();
+            $current = $user->currentAccessToken();
+            $user->tokens()->where('id', '!=', $current?->id)->delete();
+        });
 
         return response()->json(['message' => __('Password updated.')]);
     }
@@ -135,9 +161,20 @@ class AccountController extends Controller
 
     public function wishlist(Request $request): AnonymousResourceCollection
     {
-        $products = Product::published()
-            ->whereIn('id', Wishlist::where('user_id', $request->user()->id)->select('product_id'))
+        $saved = Wishlist::where('user_id', $request->user()->id)->select('product_id');
+
+        $products = QueryBuilder::for(
+            Product::published()->whereIn('id', $saved)
+        )
             ->with(['brand', 'primaryImage'])
+            ->allowedFilters(...[
+                AllowedFilter::callback('search', fn ($q, $v) => $q->search($v)),
+                AllowedFilter::callback('in_stock', fn ($q, $v) => filter_var($v, FILTER_VALIDATE_BOOL)
+                    ? $q->inStock()
+                    : $q),
+            ])
+            ->allowedSorts(...['price', 'created_at'])
+            ->defaultSort('-created_at')
             ->get();
 
         return ProductResource::collection($products);
