@@ -11,6 +11,7 @@ use App\Models\UserAddress;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 use Spatie\QueryBuilder\AllowedFilter;
@@ -132,7 +133,15 @@ class CustomerController extends Controller
     {
         abort_unless($customer->hasRole(Role::Customer->value), 404);
 
-        $customer->update(['is_active' => ! $customer->is_active]);
+        // Read-modify-write: two admins toggling at once would otherwise both
+        // read the same value and one flip would be silently lost.
+        DB::transaction(function () use ($customer) {
+            $locked = User::lockForUpdate()->findOrFail($customer->id);
+
+            $locked->update(['is_active' => ! $locked->is_active]);
+
+            $customer->setAttribute('is_active', $locked->is_active);
+        });
 
         return back()->with(
             'success',

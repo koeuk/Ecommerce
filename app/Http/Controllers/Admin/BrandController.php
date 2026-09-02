@@ -7,6 +7,7 @@ use App\Http\Requests\Admin\BrandRequest;
 use App\Models\Brand;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -93,14 +94,30 @@ class BrandController extends Controller
 
     public function destroy(Brand $brand): RedirectResponse
     {
-        if ($brand->products()->exists()) {
-            return back()->with(
-                'error',
-                'This brand still has products. Reassign them before deleting.'
-            );
-        }
+        /*
+         * Guard and delete share one transaction under a row lock. Otherwise a
+         * product could be assigned to this brand between the check passing
+         * and the delete landing, orphaning that product.
+         */
+        $error = DB::transaction(function () use ($brand) {
+            $locked = Brand::lockForUpdate()->find($brand->id);
 
-        $brand->delete();
+            if (! $locked) {
+                return 'That brand no longer exists.';
+            }
+
+            if ($locked->products()->exists()) {
+                return 'This brand still has products. Reassign them before deleting.';
+            }
+
+            $locked->delete();
+
+            return null;
+        });
+
+        if ($error) {
+            return back()->with('error', $error);
+        }
 
         return redirect()->route('admin.brands.index')
             ->with('success', 'Brand deleted.');

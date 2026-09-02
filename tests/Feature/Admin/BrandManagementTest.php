@@ -145,6 +145,16 @@ class BrandManagementTest extends TestCase
             ->assertOk();
     }
 
+    public function test_deleting_a_missing_brand_is_a_404(): void
+    {
+        // Route-model binding rejects it before the controller runs; the
+        // controller's own null guard covers the narrower case of the row
+        // vanishing between binding and the lock being taken.
+        $this->actingAs($this->manager)
+            ->delete(route('admin.brands.destroy', 999999))
+            ->assertNotFound();
+    }
+
     public function test_staff_cannot_create_brands(): void
     {
         $staff = tap(User::factory()->create())->assignRole(Role::Staff->value);
