@@ -7,7 +7,9 @@
         <Sidebar />
 
         <!-- end -->
-        <slot />
+        <div class="page-enter-anim">
+            <slot />
+        </div>
     </div>
 </template>
 

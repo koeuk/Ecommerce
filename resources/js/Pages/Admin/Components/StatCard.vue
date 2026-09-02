@@ -20,7 +20,7 @@ const tones = {
     <component
         :is="href ? Link : 'div'"
         :href="href"
-        class="block rounded-xl bg-white p-5 shadow-sm ring-1 ring-gray-200 transition dark:bg-gray-800 dark:ring-gray-700"
+        class="block rounded-xl bg-white p-5 shadow-sm ring-1 ring-gray-200 transition-shadow duration-200 hover:shadow-md dark:bg-gray-800 dark:ring-gray-700"
         :class="href ? 'hover:ring-brand-500' : ''"
     >
         <p class="text-sm font-medium text-gray-500 dark:text-gray-400">{{ label }}</p>

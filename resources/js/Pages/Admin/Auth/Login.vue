@@ -42,7 +42,7 @@ const submit = () => {
 
     <div class="flex min-h-screen items-center justify-center bg-gray-100 p-4 dark:bg-gray-950 sm:p-8">
         <div
-            class="grid w-full max-w-5xl overflow-hidden rounded-2xl bg-white shadow-xl ring-1 ring-gray-200 dark:bg-gray-900 dark:ring-gray-800 lg:grid-cols-2"
+            class="page-enter-anim grid w-full max-w-5xl overflow-hidden rounded-2xl bg-white shadow-xl ring-1 ring-gray-200 dark:bg-gray-900 dark:ring-gray-800 lg:grid-cols-2"
         >
             <!-- Left: brand panel -->
             <div
